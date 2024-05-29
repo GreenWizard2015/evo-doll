@@ -4,12 +4,15 @@ import { useBox, usePlane } from '@react-three/cannon';
 function Floor() {
   const [ref] = usePlane(() => ({
     rotation: [-Math.PI / 2, 0, 0], // Rotate the plane to be horizontal
-    position: [0, -1, 0]
+    position: [0, -1, 0],
+    material: {
+      friction: 1
+    }
   }));
 
   return (
-    <mesh ref={ref}>
-      <planeGeometry args={[100, 100]} /> {/* Large plane to simulate infinity */}
+    <mesh ref={ref} name='floor' receiveShadow castShadow>
+      <boxGeometry args={[100000, 100000, 0.1]} />
       <meshStandardMaterial color="green" />
     </mesh>
   );
@@ -27,7 +30,7 @@ function Wall({ position, rotation, args }) {
   }));
 
   return (
-    <mesh ref={ref} receiveShadow>
+    <mesh ref={ref} name='wall' receiveShadow>
       <boxGeometry args={args} />
       <meshStandardMaterial color="gray" />
     </mesh>
