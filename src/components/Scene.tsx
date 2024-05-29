@@ -1,5 +1,5 @@
 import React from 'react';
-import { usePlane } from '@react-three/cannon';
+import { useBox, usePlane } from '@react-three/cannon';
 
 function Floor() {
   const [ref] = usePlane(() => ({
@@ -15,10 +15,12 @@ function Floor() {
   );
 }
 
-function Wall({ position, rotation }) {
-  const [ref] = usePlane(() => ({
+
+function Wall({ position, rotation, args }) {
+  const [ref] = useBox(() => ({
     position,
     rotation,
+    args,
     material: {
       friction: 1 
     }
@@ -26,20 +28,20 @@ function Wall({ position, rotation }) {
 
   return (
     <mesh ref={ref} receiveShadow>
-      <planeGeometry args={[20, 20]} /> {/* Large plane to simulate infinity */}
+      <boxGeometry args={args} />
       <meshStandardMaterial color="gray" />
     </mesh>
   );
-};
+}
 
 function Walls() {
   return (
     <>
-      <Wall position={[-10, 0, 0]} rotation={[0, Math.PI / 2, 0]} />
-      <Wall position={[+10, 0, 0]} rotation={[0, -Math.PI / 2, 0]} />
+      <Wall position={[-10, 5, 0]} rotation={[0, 0, 0]} args={[1, 10, 20]} /> {/* Left wall */}
+      <Wall position={[10, 5, 0]} rotation={[0, 0, 0]} args={[1, 10, 20]} /> {/* Right wall */}
     </>
   );
-};
+}
 
 function Scene() {
   return (
