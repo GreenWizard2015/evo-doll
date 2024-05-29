@@ -40,8 +40,8 @@ function Wall({ position, rotation, args }) {
 function Walls() {
   return (
     <>
-      <Wall position={[-10, 5, 0]} rotation={[0, 0, 0]} args={[1, 10, 20]} /> {/* Left wall */}
-      <Wall position={[10, 5, 0]} rotation={[0, 0, 0]} args={[1, 10, 20]} /> {/* Right wall */}
+      <Wall position={[-10, 5, 0]} rotation={[0, 0, 0]} args={[1, 15, 20]} /> {/* Left wall */}
+      <Wall position={[10, 5, 0]} rotation={[0, 0, 0]} args={[1, 15, 20]} /> {/* Right wall */}
     </>
   );
 }

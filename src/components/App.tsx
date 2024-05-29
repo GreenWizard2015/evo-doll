@@ -1,10 +1,12 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Physics } from '@react-three/cannon';
-import { Ragdoll } from './Ragdoll';
+import { RAGDOLL_PARTS, Ragdoll, encodeObservation } from './Ragdoll';
 import { OrbitControls } from '@react-three/drei';
 import Scene from './Scene';
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { createModel } from '../helpers/NN';
+import * as tf from '@tensorflow/tfjs';
 
 const CustomCamera: React.FC = () => {
   const { camera } = useThree();
@@ -26,49 +28,65 @@ const CustomCamera: React.FC = () => {
 };
 
 function Debug({playerA, playerB}) {
+  const model = useRef(createModel({inputSize: 240, outputSize: RAGDOLL_PARTS.length}));
+  const stateA = useRef<any>(null);
+  const actionA = useRef<any>(null);
+
+  const stateB = useRef<any>(null);
+  const actionB = useRef<any>(null);
+  
   const raycaster = useRef(new THREE.Raycaster());
+
   useFrame(({ scene }) => {
     if (!playerA.current || !playerB.current) return;
-    const headA = playerA.current['head'].ref.current;
-    const ownParts = [];
-    for (const part in playerA.current) {
-      if (playerA.current[part].ref.current) {
-        ownParts.push(playerA.current[part].ref.current.uuid);
+    
+    stateA.current = encodeObservation({
+      raycaster: raycaster.current,
+      player: playerA.current,
+      scene
+    })
+
+    stateB.current = encodeObservation({
+      raycaster: raycaster.current,
+      player: playerB.current,
+      scene
+    });
+
+    // apply action
+    const maxForce = 10;
+    if (actionA.current) {
+      for (let i = 0; i < RAGDOLL_PARTS.length; i++) {
+        const { api } = playerA.current[RAGDOLL_PARTS[i]];
+        api.applyImpulse([actionA.current[i] * maxForce, 0, 0], [0, 0, 0]);
       }
     }
-    const globalObjects = ['floor', 'wall'];
 
-    const headPosition = new THREE.Vector3();
-    headA.getWorldPosition(headPosition);
-
-    const intersections = [];
-    const raycaster_ = raycaster.current;
-    const step = 360 / 15;
-    for (let i = 0; i < 360; i += step) {
-      const angle = THREE.MathUtils.degToRad(i);
-      // in XY plane
-      const direction = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
-      raycaster_.set(headPosition, direction);
-
-      const intersects = raycaster_.intersectObjects(scene.children, true);
-      let intersection = null;
-      if (intersects.length > 0) {
-        // Filter out own parts
-        const filteredIntersects = intersects.filter(
-          intersect => globalObjects.includes(intersect.object.name) || 
-            !ownParts.includes(intersect.object.uuid)
-        );
-
-        if (filteredIntersects.length > 0) {
-          intersection = filteredIntersects[0];
-        }
+    if (actionB.current) {
+      for (let i = 0; i < RAGDOLL_PARTS.length; i++) {
+        const { api } = playerB.current[RAGDOLL_PARTS[i]];
+        api.applyImpulse([actionB.current[i] * maxForce, 0, 0], [0, 0, 0]);
       }
-
-      intersections.push(intersection);
     }
-
-    console.log(intersections);
   });
+
+  const onTick = React.useCallback(() => {
+    if (!model.current) return;
+    if (!stateA.current || !stateB.current) return;
+    console.log('predicting');
+
+    let state = tf.tensor2d(stateA.current, [1, stateA.current.length]);
+    actionA.current = model.current.predict(state).arraySync()[0];
+    console.log('actionA', actionA.current);
+
+    state = tf.tensor2d(stateB.current, [1, stateB.current.length]);
+    actionB.current = model.current.predict(state).arraySync()[0];
+    console.log('actionB', actionB.current);
+  }, [model, stateA, stateB]);
+
+  useEffect(() => {
+    const intervalHandle = setInterval(onTick, 10); 
+    return () => clearInterval(intervalHandle);
+  }, [onTick]);    
 
   return null;
 }
