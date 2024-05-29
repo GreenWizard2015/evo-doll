@@ -25,6 +25,17 @@ const CustomCamera: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  const playerA = useRef();
+  const playerB = useRef();
+
+  function bindPlayerA(ref) {
+    playerA.current = ref.current;
+  }
+
+  function bindPlayerB(ref) {
+    playerB.current = ref.current;
+  }
+
   return (
     <Canvas id='canvas' style={{ position: 'absolute' }}>
       <CustomCamera />
@@ -33,7 +44,8 @@ const App: React.FC = () => {
       <Physics>
         <Scene />
 
-        <Ragdoll />
+        <Ragdoll onState={bindPlayerA} props={{ position: [-2, 0, 0] }} />
+        <Ragdoll onState={bindPlayerB} props={{ position: [2, 0, 0] }} />
       </Physics>
       <OrbitControls />
     </Canvas>
