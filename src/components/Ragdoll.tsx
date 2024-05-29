@@ -3,7 +3,6 @@ import { useBox, useConeTwistConstraint } from '@react-three/cannon';
 import { createRagdoll } from '../helpers/createRagdoll';
 import { useDragConstraint } from '../helpers/Drag';
 import { Block } from '../helpers/Block';
-import { useFrame } from '@react-three/fiber';
 
 const { shapes, joints } = createRagdoll(1.5, Math.PI / 16, Math.PI / 16, 0);
 const context = createContext();
