@@ -32,7 +32,6 @@ function Debug({playerA, playerB}) {
   const modelA = useRef(createModel({inputSize: 240, outputSize: RAGDOLL_PARTS.length}));
   const modelB = useRef(createModel({inputSize: 240, outputSize: RAGDOLL_PARTS.length}));
   const raycaster = useRef(new THREE.Raycaster());
-  const tick = useRef(0);
 
   useFrame(({ scene }) => {    
     const process = (player, model) => {
@@ -55,9 +54,6 @@ function Debug({playerA, playerB}) {
         api.applyImpulse([action[i] * maxForce, 0, 0], [0, 0, 0]);
       }
     };
-
-    if (tick.current > 25) return;
-    tick.current += 1;
     
     process(playerA.current, modelA.current);
     process(playerB.current, modelB.current);
@@ -101,21 +97,24 @@ const App: React.FC = () => {
     const bodyVelocity = bodyData?.velocity.current || new THREE.Vector3();
     const targetVelocity = targetData?.velocity.current || new THREE.Vector3();
 
+    const bodySpeed = bodyVelocity.length();
+    const targetSpeed = targetVelocity.length();
+    if (bodySpeed > targetSpeed) return; // only count if the body is faster
+
     const tmp = bodyVelocity.clone().sub(targetVelocity);
-    const total = Math.max(0, tmp.length() * 100 - 20);
-    
-    const scoresNew = { ...scores };
-    const score = total;
-    // penalize the player that is hit
-    if(targetData) {
-      scoresNew[targetData.player] -= score;
-    }
-    // reward the player that hits
-    if(bodyData) {
-      scoresNew[bodyData.player] += score;
-    }
-    
-    setScores(scoresNew); // update the scores
+    const score = tmp.length() - 20;
+    setScores((prevScores) => {
+      const scoresNew = { ...prevScores };
+      // penalize the player that is hit
+      if(targetData) {
+        scoresNew[targetData.player] -= score;
+      }
+      // reward the player that hits
+      if (bodyData) {
+        scoresNew[bodyData.player] += score;
+      }
+      return scoresNew;
+    });
   }
 
   const playerProps = {
