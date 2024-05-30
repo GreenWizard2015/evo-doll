@@ -20,9 +20,19 @@ const BodyPart = ({ setApi, config, children, render, name, ...props }:
   const { color, args, mass, position } = shapes[name];
   const parent = useContext(context);
   const [boxRef, api] = useBox(() => ({ mass, args, position, ...props }));
+  const velocityRef = useRef(new THREE.Vector3());
   useEffect(() => {
-    if (setApi) setApi(api, boxRef);
-  }, [api, setApi, boxRef]);
+    if (setApi) setApi({api, ref: boxRef, velocity: velocityRef});
+  }, [api, setApi, boxRef, velocityRef]);
+
+  useEffect(() => {
+    const unsubscribe = api.velocity.subscribe((velocity) => {
+      velocityRef.current.set(velocity[0], velocity[1], velocity[2]);
+    });
+
+    return () => unsubscribe();
+  }, [api.velocity]);
+
   useConeTwistConstraint(boxRef, parent, config);
   const bind = useDragConstraint(boxRef);
   return (
@@ -40,14 +50,12 @@ export function Ragdoll({ onState, props }: { onState: (state: any) => void, pro
   const [group, setgroup] = React.useState(null);
   useEffect(() => onState && onState(state), [onState, state]);
 
-  function bind(api, ref) {
-    const name = ref.current.name;
-    state.current[name] = { api, ref };
+  function bind(bindData) {
+    const name = bindData.ref.current.name;
+    state.current[name] = bindData;
   }
 
   props = React.useMemo(() => {
-    console.log(group);
-    
     return {
       ...props,
       collisionFilterGroup: group,

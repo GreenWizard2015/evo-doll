@@ -69,41 +69,50 @@ function Debug({playerA, playerB}) {
 const App: React.FC = () => {
   const playerA = useRef<any>(null);
   const playerB = useRef<any>(null);
+  const UUID2player = useRef({ });
   const [scores, setScores] = React.useState({ playerA: 0, playerB: 0 });
+
+  function saveMapping(ref, player) {
+    for (const partName in ref.current) {
+      const { ref: rf, ...data } = ref.current[partName];
+      UUID2player.current[rf.current.uuid] = {
+        ...data, ref: rf, partName, player
+      };
+    }
+  }
 
   function bindPlayerA(ref) {
     playerA.current = ref.current;
+    saveMapping(ref, 'playerA');
   }
 
   function bindPlayerB(ref) {
     playerB.current = ref.current;
+    saveMapping(ref, 'playerB');
   }
 
   function onCollide(e: CollisionEvent) {
     if (!playerA.current || !playerB.current) return;
     if (!playerA.current['head'] || !playerB.current['head']) return;
-    const { body, target, contact: { impactVelocity } } = e;
-    if (impactVelocity < 0) return;
-    const playerAGroup = playerA.current['head'].ref.current.collisionFilterGroup;
-    const playerBGroup = playerB.current['head'].ref.current.collisionFilterGroup;
-    const score = Math.max(0, impactVelocity);
+    const { body, target } = e;
+    const targetData = UUID2player.current[target.uuid];
+    const bodyData = UUID2player.current[body.uuid];
+    
+    const bodyVelocity = bodyData?.velocity.current || new THREE.Vector3();
+    const targetVelocity = targetData?.velocity.current || new THREE.Vector3();
+
+    const tmp = bodyVelocity.clone().sub(targetVelocity);
+    const total = Math.max(0, tmp.length() * 100 - 20);
+    
     const scoresNew = { ...scores };
+    const score = total;
     // penalize the player that is hit
-    if(target.collisionFilterGroup === playerAGroup) {
-      scoresNew.playerA -= score;
-      console.log('playerA hit', e);
-      
-    }
-    if(target.collisionFilterGroup === playerBGroup) {
-      scoresNew.playerB -= score;
+    if(targetData) {
+      scoresNew[targetData.player] -= score;
     }
     // reward the player that hits
-    if(body.collisionFilterGroup === playerAGroup) {
-      scoresNew.playerA += score;
-      console.log('playerB hit by playerA', e);
-    }
-    if(body.collisionFilterGroup === playerBGroup) {
-      scoresNew.playerB += score;
+    if(bodyData) {
+      scoresNew[bodyData.player] += score;
     }
     
     setScores(scoresNew); // update the scores
