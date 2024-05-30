@@ -37,6 +37,7 @@ const BodyPart = ({ setApi, config, children, render, name, ...props }:
 
 export function Ragdoll({ onState, props }: { onState: (state: any) => void, props: any}) {
   const state = useRef({ });
+  const [group, setgroup] = React.useState(null);
   useEffect(() => onState && onState(state), [onState, state]);
 
   function bind(api, ref) {
@@ -44,24 +45,36 @@ export function Ragdoll({ onState, props }: { onState: (state: any) => void, pro
     state.current[name] = { api, ref };
   }
 
+  props = React.useMemo(() => {
+    console.log(group);
+    
+    return {
+      ...props,
+      collisionFilterGroup: group,
+      collisionFilterMask: group
+    };
+  }, [props, group]);
+
   return (
-    <BodyPart name="upperBody" setApi={bind} {...props}>
-      <BodyPart {...props} name="head" setApi={bind} config={joints['neckJoint']} />
-      <BodyPart {...props} name="upperLeftArm" setApi={bind} config={joints['leftShoulder']}>
-        <BodyPart {...props} name="lowerLeftArm" setApi={bind} config={joints['leftElbowJoint']} />
-      </BodyPart>
-      <BodyPart {...props} name="upperRightArm" setApi={bind} config={joints['rightShoulder']}>
-        <BodyPart {...props} name="lowerRightArm" setApi={bind} config={joints['rightElbowJoint']} />
-      </BodyPart>
-      <BodyPart {...props} name="pelvis" setApi={bind} config={joints['spineJoint']}>
-        <BodyPart {...props} name="upperLeftLeg" setApi={bind} config={joints['leftHipJoint']}>
-          <BodyPart {...props} name="lowerLeftLeg" setApi={bind} config={joints['leftKneeJoint']} />
+    <group ref={g => setgroup(g ? g.id : null)}>
+      <BodyPart name="upperBody" setApi={bind} {...props}>
+        <BodyPart {...props} name="head" setApi={bind} config={joints['neckJoint']} />
+        <BodyPart {...props} name="upperLeftArm" setApi={bind} config={joints['leftShoulder']}>
+          <BodyPart {...props} name="lowerLeftArm" setApi={bind} config={joints['leftElbowJoint']} />
         </BodyPart>
-        <BodyPart {...props} name="upperRightLeg" setApi={bind} config={joints['rightHipJoint']}>
-          <BodyPart {...props} name="lowerRightLeg" setApi={bind} config={joints['rightKneeJoint']} />
+        <BodyPart {...props} name="upperRightArm" setApi={bind} config={joints['rightShoulder']}>
+          <BodyPart {...props} name="lowerRightArm" setApi={bind} config={joints['rightElbowJoint']} />
+        </BodyPart>
+        <BodyPart {...props} name="pelvis" setApi={bind} config={joints['spineJoint']}>
+          <BodyPart {...props} name="upperLeftLeg" setApi={bind} config={joints['leftHipJoint']}>
+            <BodyPart {...props} name="lowerLeftLeg" setApi={bind} config={joints['leftKneeJoint']} />
+          </BodyPart>
+          <BodyPart {...props} name="upperRightLeg" setApi={bind} config={joints['rightHipJoint']}>
+            <BodyPart {...props} name="lowerRightLeg" setApi={bind} config={joints['rightKneeJoint']} />
+          </BodyPart>
         </BodyPart>
       </BodyPart>
-    </BodyPart>
+    </group>
   );
 }
 

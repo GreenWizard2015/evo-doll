@@ -7,6 +7,7 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { createModel } from '../helpers/NN';
 import * as tf from '@tensorflow/tfjs';
+import { CollisionEvent } from '../helpers/CollisionEvent';
 
 const CustomCamera: React.FC = () => {
   const { camera } = useThree();
@@ -28,65 +29,35 @@ const CustomCamera: React.FC = () => {
 };
 
 function Debug({playerA, playerB}) {
-  const model = useRef(createModel({inputSize: 240, outputSize: RAGDOLL_PARTS.length}));
-  const stateA = useRef<any>(null);
-  const actionA = useRef<any>(null);
-
-  const stateB = useRef<any>(null);
-  const actionB = useRef<any>(null);
-  
+  const modelA = useRef(createModel({inputSize: 240, outputSize: RAGDOLL_PARTS.length}));
+  const modelB = useRef(createModel({inputSize: 240, outputSize: RAGDOLL_PARTS.length}));
   const raycaster = useRef(new THREE.Raycaster());
 
-  useFrame(({ scene }) => {
-    if (!playerA.current || !playerB.current) return;
-    
-    stateA.current = encodeObservation({
-      raycaster: raycaster.current,
-      player: playerA.current,
-      scene
-    })
+  useFrame(({ scene }) => {    
+    const process = (player, model) => {
+      if (!player) return;
+      if (!model) return;
 
-    stateB.current = encodeObservation({
-      raycaster: raycaster.current,
-      player: playerB.current,
-      scene
-    });
-
-    // apply action
-    const maxForce = 10;
-    if (actionA.current) {
+      const state = encodeObservation({
+        raycaster: raycaster.current,
+        player,
+        scene
+      });
+      
+      const action = model.predict(
+        tf.tensor2d([state], [1, state.length])
+      ).arraySync()[0];
+      
+      const maxForce = 25;
       for (let i = 0; i < RAGDOLL_PARTS.length; i++) {
-        const { api } = playerA.current[RAGDOLL_PARTS[i]];
-        api.applyImpulse([actionA.current[i] * maxForce, 0, 0], [0, 0, 0]);
+        const { api } = player[RAGDOLL_PARTS[i]];
+        api.applyImpulse([action[i] * maxForce, 0, 0], [0, 0, 0]);
       }
-    }
+    };
 
-    if (actionB.current) {
-      for (let i = 0; i < RAGDOLL_PARTS.length; i++) {
-        const { api } = playerB.current[RAGDOLL_PARTS[i]];
-        api.applyImpulse([actionB.current[i] * maxForce, 0, 0], [0, 0, 0]);
-      }
-    }
+    process(playerA.current, modelA.current);
+    process(playerB.current, modelB.current);
   });
-
-  const onTick = React.useCallback(() => {
-    if (!model.current) return;
-    if (!stateA.current || !stateB.current) return;
-    console.log('predicting');
-
-    let state = tf.tensor2d(stateA.current, [1, stateA.current.length]);
-    actionA.current = model.current.predict(state).arraySync()[0];
-    console.log('actionA', actionA.current);
-
-    state = tf.tensor2d(stateB.current, [1, stateB.current.length]);
-    actionB.current = model.current.predict(state).arraySync()[0];
-    console.log('actionB', actionB.current);
-  }, [model, stateA, stateB]);
-
-  useEffect(() => {
-    const intervalHandle = setInterval(onTick, 10); 
-    return () => clearInterval(intervalHandle);
-  }, [onTick]);    
 
   return null;
 }
@@ -103,6 +74,10 @@ const App: React.FC = () => {
     playerB.current = ref.current;
   }
 
+  function onCollide(e: CollisionEvent) {
+    console.log('collide', e);
+  }
+
   return (
     <Canvas id='canvas' style={{ position: 'absolute' }}>
       <CustomCamera />
@@ -111,8 +86,8 @@ const App: React.FC = () => {
       <Physics>
         <Scene />
 
-        <Ragdoll onState={bindPlayerA} props={{ position: [-2, 0, 0] }} />
-        <Ragdoll onState={bindPlayerB} props={{ position: [2, 0, 0] }} />
+        <Ragdoll onState={bindPlayerA} props={{ position: [-2, 0, 0], onCollide }} />
+        <Ragdoll onState={bindPlayerB} props={{ position: [2, 0, 0], onCollide }} />
       </Physics>
       <OrbitControls />
       <Debug playerA={playerA} playerB={playerB} />
