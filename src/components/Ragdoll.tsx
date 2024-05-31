@@ -6,7 +6,7 @@ import { Block } from '../helpers/Block';
 import * as THREE from 'three';
 
 const { shapes, joints } = createRagdoll(1.5, Math.PI / 16, Math.PI / 16, 0);
-const context = createContext();
+const context = createContext(null);
 
 const RAGDOLL_PARTS = [
   'upperBody', 'head', 'upperLeftArm', 'lowerLeftArm', 'upperRightArm', 'lowerRightArm',
