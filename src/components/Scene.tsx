@@ -30,10 +30,13 @@ function Wall({ position, rotation, args }) {
   }));
 
   return (
-    <mesh ref={ref} name='wall' receiveShadow>
-      <boxGeometry args={args} />
-      <meshStandardMaterial color="gray" />
-    </mesh>
+    <>
+      {/* @ts-ignore */}
+      <mesh ref={ref} name='wall' receiveShadow>
+        <boxGeometry args={args} />
+        <meshStandardMaterial color="gray" />
+      </mesh>
+    </>
   );
 }
 
