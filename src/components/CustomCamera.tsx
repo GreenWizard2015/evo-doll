@@ -15,7 +15,7 @@ function CustomCamera() {
   }, [PerspectiveCamera]);
 
   return (
-    <perspectiveCamera ref={PerspectiveCamera} makeDefault />
+    <perspectiveCamera ref={PerspectiveCamera} />
   );
 }
 
