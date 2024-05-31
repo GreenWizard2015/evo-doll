@@ -4,7 +4,7 @@ import { RAGDOLL_PARTS, Ragdoll, encodeObservation } from "./Ragdoll";
 import { useFrame } from "@react-three/fiber";
 import { createModel } from "../helpers/NN";
 import * as THREE from 'three';
-import * as tf from '@tensorflow/tfjs';
+import { runInference } from "./InferenceWorker";
 
 function Arena({ ZPos, updateScores, uuid, timeLimit}) {
   const startTimestamp = useRef(Date.now());
@@ -16,12 +16,14 @@ function Arena({ ZPos, updateScores, uuid, timeLimit}) {
     state: null,
     action: null,
     scores: 0,
+    ref: null,
   });
   const playerBData = useRef({
     model: createModel({inputSize: 240, outputSize: RAGDOLL_PARTS.length}),
     state: null,
     action: null,
     scores: 0,
+    ref: null,
   });
   const raycaster = useRef(new THREE.Raycaster());
 
@@ -35,14 +37,28 @@ function Arena({ ZPos, updateScores, uuid, timeLimit}) {
     }
   }
 
-  function bindPlayerA(ref) { saveMapping(ref, 'playerA'); }
-  function bindPlayerB(ref) { saveMapping(ref, 'playerB'); }
+  function bindPlayerA(ref) {
+    saveMapping(ref, 'playerA');
+    playerAData.current.ref = ref;
+  }
+  function bindPlayerB(ref) {
+    saveMapping(ref, 'playerB');
+    playerBData.current.ref = ref;
+  }
 
   React.useEffect(() => {
     playerAData.current.scores = scores.playerA;
     playerBData.current.scores = scores.playerB;
     updateScores(scores, uuid);
   }, [scores, updateScores, uuid]);
+
+  const onInference = React.useCallback(({ data, uuid }) => {
+    if (uuid === 'playerA') {
+      playerAData.current.action = data;
+    } else if (uuid === 'playerB') {
+      playerBData.current.action = data;
+    }
+  }, []);
 
   useFrame(({ scene }) => {    
     const process = (playerData) => {
@@ -53,8 +69,14 @@ function Arena({ ZPos, updateScores, uuid, timeLimit}) {
         player,
         scene
       });
+
+      runInference({
+        model: playerData.current.model,
+        state: state,
+        callback: onInference,
+        uuid: player
+      });
       
-      playerData.current.state = state;
       if(action) { // apply action if available
         const maxForce = 25;
         for (let i = 0; i < RAGDOLL_PARTS.length; i++) {
@@ -70,24 +92,7 @@ function Arena({ ZPos, updateScores, uuid, timeLimit}) {
     process(playerAData);
     process(playerBData);
   });
-  // process players data
-  const onTick = React.useCallback(() => {
-    const process = (playerData) => {
-      if (!playerData.current) return;
-      const { model, state } = playerData.current;
-      if (!state) return;
-      const action = model.predict(tf.tensor2d([state], [1, state.length])).arraySync()[0];
-      playerData.current.action = action;
-      playerData.current.state = null; // reset state
-    };
-    process(playerAData);
-    process(playerBData);
-  }, []);
-
-  React.useEffect(() => {
-    const interval = setInterval(onTick, 100);
-    return () => clearInterval(interval);
-  }, [onTick]);
+  
 
   function onCollide(e: CollisionEvent) {
     const { body, target } = e;

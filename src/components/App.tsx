@@ -5,6 +5,7 @@ import { OrbitControls } from '@react-three/drei';
 import Scene from './Scene';
 import Arena from './Arena';
 import CustomCamera from './CustomCamera';
+import InferenceWorker from './InferenceWorker';
 
 const App: React.FC = () => {
   const [scores, setScores] = React.useState([
@@ -42,6 +43,7 @@ const App: React.FC = () => {
           </div>
         ))}
       </div>
+      <InferenceWorker />
     </>
   );
 }

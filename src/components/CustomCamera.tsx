@@ -1,22 +1,22 @@
-import { useThree } from "@react-three/fiber";
+import { PerspectiveCameraProps } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
+import * as THREE from "three";
 
 function CustomCamera() {
-  const { camera } = useThree();
-  const ref = useRef();
-  
+  const PerspectiveCamera = useRef<PerspectiveCameraProps>(null);
+
   useEffect(() => {
-    if (ref.current) {
-      camera.position.set(0, 5, 10);
-      camera.fov = 95;
-      camera.near = 0.1;
-      camera.far = 1000;
-      camera.updateProjectionMatrix();
+    if (PerspectiveCamera.current) {
+      PerspectiveCamera.current.position = new THREE.Vector3(0, 5, 10);
+      PerspectiveCamera.current.fov = 95;
+      PerspectiveCamera.current.near = 0.1;
+      PerspectiveCamera.current.far = 1000;
+      PerspectiveCamera.current.updateProjectionMatrix();
     }
-  }, [camera, ref]);
+  }, [PerspectiveCamera]);
 
   return (
-    <perspectiveCamera ref={ref} makeDefault />
+    <perspectiveCamera ref={PerspectiveCamera} makeDefault />
   );
 }
 
