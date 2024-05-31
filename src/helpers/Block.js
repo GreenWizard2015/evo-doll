@@ -8,7 +8,7 @@ const defaultProps = {
   args: [1, 1, 1]
 };
 
-export const Block = forwardRef(({children, ...params}, ref) => {
+const Block = forwardRef(({children, ...params}, ref) => {
   const { args, color, transparent, opacity, ...props } = { ...defaultProps, ...params };
   return (
     <RoundedBox args={args} receiveShadow castShadow ref={ref} {...props}>
@@ -17,3 +17,7 @@ export const Block = forwardRef(({children, ...params}, ref) => {
     </RoundedBox>
   );
 });
+
+Block.displayName = 'Block';
+
+export { Block };
