@@ -12,9 +12,7 @@ async function processQueue() {
   delete queue[taskId];
 
   const { model, state, callback } = task;
-  const batch = tf.tensor2d([state], [1, state.length]);
-  const results = model.predict(batch).dataSync()[0];
-  batch.dispose(); // Free memory
+  const results = model.predict(state);
   self.postMessage({ status: "done", data: results, callback, uuid: taskId });
   
   processQueue(); // Process next task

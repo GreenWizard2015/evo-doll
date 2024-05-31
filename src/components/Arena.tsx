@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import { CollisionEvent } from "../helpers/CollisionEvent";
 import { RAGDOLL_PARTS, Ragdoll, encodeObservation } from "./Ragdoll";
 import { useFrame } from "@react-three/fiber";
-import { createModel } from "../helpers/NN";
+import { Brain } from "../helpers/NN";
 import * as THREE from 'three';
 import { runInference } from "./InferenceWorker";
 
@@ -11,20 +11,31 @@ function Arena({ ZPos, updateScores, uuid, timeLimit}) {
   const UUID2player = useRef({ });
   const [scores, setScores] = React.useState({ playerA: 0, playerB: 0 });
 
-  const playerAData = useRef({
-    model: createModel({inputSize: 240, outputSize: RAGDOLL_PARTS.length}),
-    state: null,
-    action: null,
-    scores: 0,
-    ref: null,
-  });
-  const playerBData = useRef({
-    model: createModel({inputSize: 240, outputSize: RAGDOLL_PARTS.length}),
-    state: null,
-    action: null,
-    scores: 0,
-    ref: null,
-  });
+  const playerAData = useRef(null);
+  const playerBData = useRef(null);
+
+  React.useEffect(() => {
+    playerAData.current = {
+      model: new Brain({inputSize: 240, outputSize: RAGDOLL_PARTS.length}),
+      state: null,
+      action: null,
+      scores: 0,
+      ref: null,
+    };
+
+    playerBData.current = {
+      model: new Brain({inputSize: 240, outputSize: RAGDOLL_PARTS.length}),
+      state: null,
+      action: null,
+      scores: 0,
+      ref: null,
+    };
+
+    return () => {
+      playerAData.current.model.dispose();
+      playerBData.current.model.dispose();
+    };
+  }, []); // dispose the model when the component is unmounted
   const raycaster = useRef(new THREE.Raycaster());
 
   // Save the mapping between the UUID of the body and the player
@@ -47,9 +58,11 @@ function Arena({ ZPos, updateScores, uuid, timeLimit}) {
   }
 
   React.useEffect(() => {
-    playerAData.current.scores = scores.playerA;
-    playerBData.current.scores = scores.playerB;
-    updateScores(scores, uuid);
+    if(playerAData.current && playerBData.current) {
+      playerAData.current.scores = scores.playerA;
+      playerBData.current.scores = scores.playerB;
+      updateScores(scores, uuid);
+    }
   }, [scores, updateScores, uuid]);
 
   const onInference = React.useCallback(({ data, uuid }) => {
