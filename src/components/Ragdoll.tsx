@@ -37,6 +37,7 @@ const BodyPart = ({ setApi, config, children, render, name, ...props }:
   const bind = useDragConstraint(boxRef);
   return (
     <context.Provider value={boxRef}>
+      {/* @ts-ignore */}
       <Block castShadow receiveShadow ref={boxRef} {...props} {...bind} scale={args} name={name} color={color}>
         {render}
       </Block>
