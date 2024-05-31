@@ -11,10 +11,13 @@ function Floor() {
   }));
 
   return (
-    <mesh ref={ref} name='floor' receiveShadow castShadow>
-      <boxGeometry args={[100000, 100000, 0.1]} />
-      <meshStandardMaterial color="green" />
-    </mesh>
+    <>
+      {/* @ts-ignore */}
+      <mesh ref={ref} name='floor' receiveShadow castShadow>
+        <boxGeometry args={[100000, 100000, 0.1]} />
+        <meshStandardMaterial color="green" />
+      </mesh>
+    </>
   );
 }
 
