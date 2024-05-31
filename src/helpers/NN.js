@@ -1,4 +1,6 @@
 import * as tf from '@tensorflow/tfjs';
+// Prevents OutOfMemory - forces TFJS to clear WebGL textures when reaching 256Mb
+tf.env().set("WEBGL_DELETE_TEXTURE_THRESHOLD", 256000000);
 
 // Define the model
 const createModel = ({inputSize, outputSize}) => {
