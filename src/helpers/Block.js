@@ -23,3 +23,4 @@ const Block = forwardRef((params, ref) => {
 Block.displayName = 'Block';
 
 export default Block;
+export { Block };
