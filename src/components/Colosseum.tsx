@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
 import Arena, { IFightFinishedEvent, IPlayerData, IScores } from './Arena';
+import { v5 as generateUUID } from "uuid";
 
 interface IArenaData {
   brainA: IPlayerData;
   brainB: IPlayerData;
   uuid: any;
 }
-type IArenaDataItem = IArenaData | null;
 
 type IColosseumProps = {
   totalArenas?: number; // the total number of arenas
@@ -41,7 +41,7 @@ function ColosseumProvider({ children, addFighter }) {
 function ColosseumComponent({
   totalArenas = 2, updateScores, brainQueue, setBrainQueue
 }: IColosseumProps) {
-  const arenas = useRef<IArenaDataItem[]>(Array(totalArenas).fill(null));
+  const [arenas, setArenas] = useState(Array(totalArenas).fill(null));
   const [scores, setScores] = useState<IScores[]>(
     Array(totalArenas).fill({ playerA: 0, playerB: 0 })
   );
@@ -59,11 +59,12 @@ function ColosseumComponent({
   }, []);
 
   const startNextFight = useCallback(() => {    
-    const freeArenaIndex = arenas.current.indexOf(null);
+    const freeArenaIndex = arenas.indexOf(null);
     if (freeArenaIndex < 0) {
       console.log('No free arena');
       return;
     }
+    // brainQueue.length is always 8 here, despite the fact that the queue is empty
     if (brainQueue.length < 2) {
       console.log('Not enough brains to fight');
       console.log('Queue:', brainQueue);
@@ -73,15 +74,29 @@ function ColosseumComponent({
     // take the next two brains from the queue
     const brainA = brainQueue[0];
     const brainB = brainQueue[1];
-    const newArenaData: IArenaData = {
-      brainA: brainA,
-      brainB: brainB,
-      uuid: freeArenaIndex, // the UUID of the arena is the index
-    };
+    const newArena = ( // create the new arena
+      <Arena
+        key={generateUUID(Date.now().toString(), generateUUID.DNS)}
+        uuid={freeArenaIndex}
+        ZPos={freeArenaIndex * 2}
+        timeLimit={10 * 1000}
+        playerA={brainA}
+        playerB={brainB}
+        updateScores={onUpdateScores}
+        onFinished={handleFinished}
+      />
+    );
     // remove the brains from the queue
-    setBrainQueue((prevQueue) => prevQueue.slice(2)); // remove the brains from the queue
-    arenas.current[freeArenaIndex] = newArenaData; // assign the new fight to the arena
-  }, [brainQueue, setBrainQueue]);
+    setBrainQueue((prevQueue) => {
+      const [_a, _b, ...newQueue] = prevQueue;
+      return newQueue;
+    });
+    setArenas((prevArenas) => {
+      const newArenas = [...prevArenas];
+      newArenas[freeArenaIndex] = newArena; // add the new arena data
+      return newArenas;
+    });
+  }, [brainQueue, onUpdateScores, setBrainQueue]);
 
   useEffect(() => {
     startNextFight();
@@ -106,26 +121,17 @@ function ColosseumComponent({
     });
 
     // update the arena data
-    arenas.current[uuid] = null; // free the arena
+    setArenas((prevArenas) => {
+      const newArenas = [...prevArenas];
+      newArenas[uuid] = null; // free the arena
+      return newArenas;
+    });
     startNextFight(); // start the next fight if possible
   }, [startNextFight]);
 
   return (
     <>
-      {arenas.current.map((arena, i) => 
-        arena ? (
-          <Arena
-            key={i}
-            uuid={arena.uuid}
-            ZPos={i * 2}
-            timeLimit={10 * 1000}
-            playerA={arena.brainA}
-            playerB={arena.brainB}
-            updateScores={onUpdateScores}
-            onFinished={handleFinished}
-          />
-        ) : null
-      )}
+      {arenas}
     </>
   );
 };
