@@ -6,20 +6,14 @@ import Scene from './Scene';
 import CustomCamera from './CustomCamera';
 import InferenceWorker from './InferenceWorker';
 import Colosseum from './Colosseum';
+import { IScores } from './Arena';
+import FightManager from './FightManager';
 
 const App: React.FC = () => {
-  const [scores, setScores] = React.useState([
+  const [scores, setScores] = React.useState<IScores[]>([
     { playerA: 0, playerB: 0 }, // Arena 1
     { playerA: 0, playerB: 0 }, // Arena 2
   ]);
-
-  function updateScores(scores, uuid) {
-    setScores((prevScores) => {
-      const scoresNew = [...prevScores];
-      scoresNew[uuid] = scores;
-      return scoresNew;
-    });
-  }
 
   return (
     <>
@@ -30,7 +24,9 @@ const App: React.FC = () => {
         <Physics>
           <Scene />
 
-          <Colosseum totalArenas={2} setScores={updateScores} scores={scores} />
+          <Colosseum totalArenas={2} updateScores={setScores}>
+            <FightManager />
+          </Colosseum>
         </Physics>
         <OrbitControls />
       </Canvas>

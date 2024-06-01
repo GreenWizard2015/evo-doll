@@ -38,16 +38,15 @@ class Brain {
     tf.tidy(() => {
       const weights = this.model.getWeights();
       const mutatedWeights = [];
-
       for (let i = 0; i < weights.length; i++) {
-        let tensor = weights[i];
-        let values = tensor.dataSync().slice();
-        const noise = tf.randomNormal([values.length], 0, std);
-        const mask = tf.less(tf.randomUniform([values.length]), rate).asType('bool');
-        values = values + tf.where(mask, noise, tf.zerosLike(noise)).dataSync();
-
-        let newTensor = tf.tensor(values, shape);
-        mutatedWeights[i] = newTensor;
+        const values = weights[i];
+        const shape = values.shape;
+        const noise = tf.randomNormal(shape, 0, std);
+        const mask = tf.less(tf.randomUniform(shape), rate).asType('bool');
+        mutatedWeights[i] = tf.tensor(
+          tf.add(values, tf.where(mask, noise, tf.zerosLike(noise))).dataSync(),
+          shape
+        );
       }
 
       this.model.setWeights(mutatedWeights);

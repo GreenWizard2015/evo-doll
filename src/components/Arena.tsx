@@ -128,11 +128,13 @@ function Arena({
         isFinished.current = true;
         const playerA: IPlayerData = {
           model: fighterA.current.model,
-          uuid: fighterA.current.uuid
+          uuid: fighterA.current.uuid,
+          callback: fighterA.current.callback
         };
         const playerB: IPlayerData = {
           model: fighterB.current.model,
-          uuid: fighterB.current.uuid
+          uuid: fighterB.current.uuid,
+          callback: fighterB.current.callback
         };
         onFinished({
           playerA,
