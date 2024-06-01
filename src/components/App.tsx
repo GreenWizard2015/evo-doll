@@ -3,9 +3,9 @@ import { Canvas } from '@react-three/fiber';
 import { Physics } from '@react-three/cannon';
 import { OrbitControls } from '@react-three/drei';
 import Scene from './Scene';
-import Arena from './Arena';
 import CustomCamera from './CustomCamera';
 import InferenceWorker from './InferenceWorker';
+import Colosseum from './Colosseum';
 
 const App: React.FC = () => {
   const [scores, setScores] = React.useState([
@@ -30,8 +30,7 @@ const App: React.FC = () => {
         <Physics>
           <Scene />
 
-          <Arena ZPos={0} updateScores={updateScores} uuid={0} timeLimit={100} />
-          <Arena ZPos={2} updateScores={updateScores} uuid={1} timeLimit={100} />
+          <Colosseum totalArenas={2} setScores={updateScores} scores={scores} />
         </Physics>
         <OrbitControls />
       </Canvas>

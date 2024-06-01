@@ -48,7 +48,7 @@ const BodyPart = ({ setApi, config, children, render, name, ...props }:
 
 export function Ragdoll({ onState, props }: { onState: (state: any) => void, props: any}) {
   const state = useRef({ });
-  const [group, setgroup] = React.useState(null);
+  const [group, setGroup] = React.useState(null);
   useEffect(() => onState && onState(state), [onState, state]);
 
   function bind(bindData) {
@@ -65,7 +65,7 @@ export function Ragdoll({ onState, props }: { onState: (state: any) => void, pro
   }, [props, group]);
 
   return (
-    <group ref={g => setgroup(g ? g.id : null)}>
+    <group ref={g => setGroup(g ? g.id : null)}>
       <BodyPart name="upperBody" setApi={bind} {...props}>
         <BodyPart {...props} name="head" setApi={bind} config={joints['neckJoint']} />
         <BodyPart {...props} name="upperLeftArm" setApi={bind} config={joints['leftShoulder']}>

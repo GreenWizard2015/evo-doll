@@ -2,42 +2,66 @@ import React, { useRef } from "react";
 import { CollisionEvent } from "../helpers/CollisionEvent";
 import { RAGDOLL_PARTS, Ragdoll, encodeObservation } from "./Ragdoll";
 import { useFrame } from "@react-three/fiber";
-import { Brain } from "../helpers/NN";
 import * as THREE from 'three';
 import { runInference } from "./InferenceWorker";
 
-function Arena({ ZPos, updateScores, uuid, timeLimit}) {
+interface IPlayerData {
+  model: any; // the brain model
+  uuid: any; // the UUID of the player
+  callback?: any; // the callback when the player is evaluated
+}
+
+interface IFighterData extends IPlayerData {
+  ref: any; // the ref of the player
+  state: any; // the state of the player
+  action: number[]; // the action of the player
+}
+
+interface IScores {
+  playerA: number;
+  playerB: number;
+}
+
+interface IFightFinishedEvent {
+  playerA: IPlayerData;
+  playerB: IPlayerData;
+  uuid: string; // the UUID of the arena
+  scores: IScores; // the scores of the fight
+}
+
+type IOnFinished = (event: IFightFinishedEvent) => void;
+type IArenaProps = {
+  ZPos: number; // the Z position of the arena
+  uuid: any; // the UUID of the arena
+  timeLimit: number; // the time limit of the arena in milliseconds
+  
+  playerA: IPlayerData; // the player A
+  playerB: IPlayerData; // the player B
+  
+  onFinished: IOnFinished; // the callback when the fight is finished
+  updateScores: (scores: IScores, uuid: any) => void;
+};
+
+function Arena({
+  ZPos, updateScores, uuid, timeLimit, playerA, playerB,
+  onFinished
+}: IArenaProps) {
   const startTimestamp = useRef(Date.now());
   const UUID2player = useRef({ });
-  const [scores, setScores] = React.useState({ playerA: 0, playerB: 0 });
+  const [scores, setScores] = React.useState<IScores>({ playerA: 0, playerB: 0 });
 
-  const playerAData = useRef(null);
-  const playerBData = useRef(null);
-
-  React.useEffect(() => {
-    playerAData.current = {
-      model: new Brain({inputSize: 240, outputSize: RAGDOLL_PARTS.length}),
-      state: null,
-      action: null,
-      scores: 0,
-      ref: null,
-    };
-
-    playerBData.current = {
-      model: new Brain({inputSize: 240, outputSize: RAGDOLL_PARTS.length}),
-      state: null,
-      action: null,
-      scores: 0,
-      ref: null,
-    };
-
-    return () => {
-      playerAData.current.model.dispose();
-      playerBData.current.model.dispose();
-    };
-  }, []); // dispose the model when the component is unmounted
-  const raycaster = useRef(new THREE.Raycaster());
-
+  const fighterA = useRef<IFighterData>({
+    ...playerA,
+    state: null,
+    action: null,
+    ref: null,
+  });
+  const fighterB = useRef<IFighterData>({
+    ...playerB,
+    state: null,
+    action: null,
+    ref: null,
+  });
   // Save the mapping between the UUID of the body and the player
   function saveMapping(ref, player) {
     for (const partName in ref.current) {
@@ -50,42 +74,42 @@ function Arena({ ZPos, updateScores, uuid, timeLimit}) {
 
   function bindPlayerA(ref) {
     saveMapping(ref, 'playerA');
-    playerAData.current.ref = ref;
+    fighterA.current.ref = ref;
   }
   function bindPlayerB(ref) {
     saveMapping(ref, 'playerB');
-    playerBData.current.ref = ref;
+    fighterB.current.ref = ref;
   }
 
   React.useEffect(() => {
-    if(playerAData.current && playerBData.current) {
-      playerAData.current.scores = scores.playerA;
-      playerBData.current.scores = scores.playerB;
-      updateScores(scores, uuid);
-    }
-  }, [scores, updateScores, uuid]);
+    updateScores(scores, uuid);
+  }, [scores, updateScores, uuid]); // update the scores when the scores change
 
   const onInference = React.useCallback(({ data, uuid }) => {
     if (uuid === 'playerA') {
-      playerAData.current.action = data;
+      fighterA.current.action = data;
     } else if (uuid === 'playerB') {
-      playerBData.current.action = data;
+      fighterB.current.action = data;
+    } else {
+      console.error('Unknown player', uuid);
+      throw new Error(`Unknown player ${uuid}!`);
     }
   }, []);
 
-  useFrame(({ scene }) => {    
+  const raycaster = useRef(new THREE.Raycaster());
+  const isFinished = useRef(false);
+  const onFrame = React.useCallback(({ scene }) => {
     const process = (playerData) => {
-      if (!playerData.current) return;
-      const { player, action } = playerData.current;
+      if (playerData) return;
+      const { player, action, model } = playerData
       const state = encodeObservation({
         raycaster: raycaster.current,
-        player,
+        player: playerData.ref,
         scene
       });
 
       runInference({
-        model: playerData.current.model,
-        state: state,
+        model, state,
         callback: onInference,
         uuid: player
       });
@@ -98,14 +122,32 @@ function Arena({ ZPos, updateScores, uuid, timeLimit}) {
         }
       }
     };
-    
+    ////////////////////////////
     if (Date.now() - startTimestamp.current > timeLimit) {
+      if (!isFinished.current) {
+        isFinished.current = true;
+        const playerA: IPlayerData = {
+          model: fighterA.current.model,
+          uuid: fighterA.current.uuid
+        };
+        const playerB: IPlayerData = {
+          model: fighterB.current.model,
+          uuid: fighterB.current.uuid
+        };
+        onFinished({
+          playerA,
+          playerB,
+          uuid,
+          scores
+        });
+      }
       return;
     }
-    process(playerAData);
-    process(playerBData);
-  });
-  
+    process(fighterA.current);
+    process(fighterB.current);
+  }, [onInference, timeLimit, onFinished, uuid, scores]);
+
+  useFrame(onFrame);
 
   function onCollide(e: CollisionEvent) {
     const { body, target } = e;
@@ -151,3 +193,6 @@ function Arena({ ZPos, updateScores, uuid, timeLimit}) {
 }
 
 export default Arena;
+export type { 
+  IScores, IOnFinished, IArenaProps, IPlayerData, IFighterData, IFightFinishedEvent 
+};
