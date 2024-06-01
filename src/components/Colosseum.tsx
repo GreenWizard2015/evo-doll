@@ -9,10 +9,9 @@ interface IArenaData {
 }
 
 type IColosseumProps = {
+  children?: React.ReactNode; // the children components
   totalArenas?: number; // the total number of arenas
   updateScores: (scores: IScores[]) => void; // the callback to update the scores per arena
-  brainQueue: IPlayerData[]; // the queue of brains to fight
-  setBrainQueue: React.Dispatch<React.SetStateAction<IPlayerData[]>>;
 };
 
 // AddFighter context
@@ -38,9 +37,27 @@ function ColosseumProvider({ children, addFighter }) {
   );
 };
 
-function ColosseumComponent({
-  totalArenas = 2, updateScores, brainQueue, setBrainQueue
+function Colosseum({
+  totalArenas = 2, updateScores, children
 }: IColosseumProps) {
+  // for provider
+  const [brainQueue, setBrainQueue] = useState<IPlayerData[]>([]);
+  const addFighter = useCallback((brain, uuid) => {
+    const player: IPlayerData = { ...brain, uuid };
+    if(!player.callback) {
+      throw new Error('The player must have a callback function');
+    }
+    console.log('Adding fighter', player);
+    
+    setBrainQueue((prevQueue) => [...prevQueue, player]);
+  }, []);
+
+  function takeBrains() {
+    const [brainA, brainB, ...rest] = brainQueue;
+    setBrainQueue(([_a, _b, ...rest]) => rest);
+    return [brainA, brainB];
+  }
+  ///////////////////
   const [arenas, setArenas] = useState<Array<JSX.Element | null>>(Array(totalArenas).fill(null));
   const [scores, setScores] = useState<IScores[]>(
     Array(totalArenas).fill({ playerA: 0, playerB: 0 })
@@ -75,8 +92,7 @@ function ColosseumComponent({
     }
 
     // take the next two brains from the queue
-    const brainA = brainQueue[0];
-    const brainB = brainQueue[1];
+    const [brainA, brainB] = takeBrains();
     const newArena = ( // create the new arena
       <Arena
         key={generateUUID(Date.now().toString(), generateUUID.DNS)}
@@ -89,22 +105,15 @@ function ColosseumComponent({
         onFinished={handleFinished}
       />
     );
-    // remove the brains from the queue
-    setBrainQueue((prevQueue) => {
-      const [_a, _b, ...newQueue] = prevQueue;
-      return newQueue;
-    });
     setArenas((prevArenas) => {
       const newArenas = [...prevArenas];
       newArenas[freeArenaIndex] = newArena; // add the new arena data
       return newArenas;
     });
-  }, [brainQueue, onUpdateScores, setBrainQueue, arenas]);
+  }, [brainQueue, onUpdateScores, arenas]);
 
   useEffect(() => {
-    if (brainQueue.length >= 2) {
-      startNextFight();
-    }
+    startNextFight();
   }, [brainQueue, startNextFight]); // start the next fight when the queue changes
 
   const handleFinished = useCallback((ev: IFightFinishedEvent) => {
@@ -135,39 +144,11 @@ function ColosseumComponent({
   }, [startNextFight]);
 
   return (
-    <>
-      {arenas}
-    </>
-  );
-};
-
-interface IColosseumPublicProps {
-  children?: any;
-  totalArenas?: number;
-  updateScores: (scores: IScores[]) => void;
-}
-
-function Colosseum({ children, totalArenas = 2, updateScores}: IColosseumPublicProps) {
-  const [brainQueue, setBrainQueue] = useState<IPlayerData[]>([]);
-  const addFighter = useCallback((brain, uuid) => {
-    const player: IPlayerData = { ...brain, uuid };
-    if(!player.callback) {
-      throw new Error('The player must have a callback function');
-    }
-    console.log('Adding fighter', player);
-    
-    setBrainQueue((prevQueue) => [...prevQueue, player]);
-  }, []);
-
-  return (
     <ColosseumProvider addFighter={addFighter}>
-      <ColosseumComponent 
-        brainQueue={brainQueue} setBrainQueue={setBrainQueue}
-        totalArenas={totalArenas} updateScores={updateScores}
-      />
+      {arenas}
       {children}
     </ColosseumProvider>
   );
-};
+}
 
 export default Colosseum;
