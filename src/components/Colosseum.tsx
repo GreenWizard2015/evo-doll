@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import Arena, { IFightFinishedEvent, IPlayerData, IScores } from './Arena';
 import { v5 as generateUUID } from "uuid";
 
@@ -41,7 +41,7 @@ function ColosseumProvider({ children, addFighter }) {
 function ColosseumComponent({
   totalArenas = 2, updateScores, brainQueue, setBrainQueue
 }: IColosseumProps) {
-  const [arenas, setArenas] = useState(Array(totalArenas).fill(null));
+  const [arenas, setArenas] = useState<Array<JSX.Element | null>>(Array(totalArenas).fill(null));
   const [scores, setScores] = useState<IScores[]>(
     Array(totalArenas).fill({ playerA: 0, playerB: 0 })
   );
@@ -58,13 +58,16 @@ function ColosseumComponent({
     });
   }, []);
 
-  const startNextFight = useCallback(() => {    
+  const startNextFight = useCallback(() => {
     const freeArenaIndex = arenas.indexOf(null);
     if (freeArenaIndex < 0) {
       console.log('No free arena');
       return;
     }
-    // brainQueue.length is always 8 here, despite the fact that the queue is empty
+    // BUG: brainQueue is not updated, and the same fighters are used in the next fight
+    //      Which causes the infinite loop of the same fighters fighting each other
+    console.log(brainQueue.length, 'brains left');
+    
     if (brainQueue.length < 2) {
       console.log('Not enough brains to fight');
       console.log('Queue:', brainQueue);
@@ -96,13 +99,15 @@ function ColosseumComponent({
       newArenas[freeArenaIndex] = newArena; // add the new arena data
       return newArenas;
     });
-  }, [brainQueue, onUpdateScores, setBrainQueue]);
+  }, [brainQueue, onUpdateScores, setBrainQueue, arenas]);
 
   useEffect(() => {
-    startNextFight();
-  }, [brainQueue]); // start the next fight when the queue changes
+    if (brainQueue.length >= 2) {
+      startNextFight();
+    }
+  }, [brainQueue, startNextFight]); // start the next fight when the queue changes
 
-  const handleFinished = React.useCallback((ev: IFightFinishedEvent) => {
+  const handleFinished = useCallback((ev: IFightFinishedEvent) => {
     const { playerA, playerB, scores, uuid } = ev;
     console.log('Fight finished:', playerA, playerB, scores, uuid);
     
@@ -144,8 +149,7 @@ interface IColosseumPublicProps {
 
 function Colosseum({ children, totalArenas = 2, updateScores}: IColosseumPublicProps) {
   const [brainQueue, setBrainQueue] = useState<IPlayerData[]>([]);
-
-  const addFighter = React.useCallback((brain, uuid) => {
+  const addFighter = useCallback((brain, uuid) => {
     const player: IPlayerData = { ...brain, uuid };
     if(!player.callback) {
       throw new Error('The player must have a callback function');
