@@ -26,7 +26,7 @@ const App: React.FC = () => {
           <Scene />
 
           <Colosseum totalArenas={10} updateScores={setScores}>
-            <FightManager updateStats={setFightStats} fightersPerEpoch={100} seedsN={2} />
+            <FightManager updateStats={setFightStats} fightersPerEpoch={100} seedsN={20} />
           </Colosseum>
         </Physics>
         <OrbitControls />

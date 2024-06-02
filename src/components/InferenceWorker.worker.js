@@ -1,3 +1,5 @@
+const { Brain } = require("../helpers/NN.js");
+
 let queue = {}; // uuid -> { model, state, callback }
 let running = false; // dumb way to check if worker is busy
 
@@ -12,7 +14,9 @@ async function processQueue() {
   delete queue[taskId];
 
   const { model, state, callback } = task;
-  const results = model.predict(state);
+  const brain = Brain.fromTransferable(model);
+  const results = brain.predict(state);
+  brain.dispose();
   self.postMessage({ status: "done", data: results, callback, uuid: taskId });
   
   processQueue(); // Process next task

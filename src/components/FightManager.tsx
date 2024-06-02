@@ -7,6 +7,7 @@ import { IPlayerData } from "./Arena";
 
 interface IFighter extends IPlayerData {
   score: number | null; // null if the fighter is not evaluated yet
+  prevScore: number | null; // the previous score
 }
 
 function FightManager({
@@ -59,7 +60,9 @@ function FightManager({
         const model = new Brain({ inputSize: 240, outputSize: RAGDOLL_PARTS.length });
         // apply huge mutation to the model
         model.mutate({ rate: 1.0, std: 10.0 });
-        const player: IFighter = { model, callback: onFinished, uuid, score: null };
+        const player: IFighter = { 
+          model, callback: onFinished, uuid, score: null, prevScore: null
+        };
         fightersLocal[uuid] = player;
         // add the fighter to the colosseum
         addFighter(player, player.uuid);
@@ -71,7 +74,11 @@ function FightManager({
     
     const N = seedsN; // number of seeds
     // sort the fighters by score, in ascending order, higher score is last
-    fightersArray.sort((a, b) => (a.score || 0) - (b.score || 0));
+    function score(fighter: IFighter) {
+      return Math.max(fighter.score, fighter.prevScore || 0);
+    }
+
+    fightersArray.sort((a, b) => score(a) - score(b));
     const topN = fightersArray.slice(-N); // get the top N fighters
     const badFighters = fightersArray.slice(0, -N); // get the bad fighters
     // dispose the bad fighters models
@@ -79,20 +86,39 @@ function FightManager({
       fighter.model.dispose();
     }
 
+    const scores = topN.map(fighter => score(fighter));
+    // normalize the scores to sum to 1
+    const sum = scores.reduce((a, b) => a + b, 0);
+    const probabilities = scores.map(score => score / sum);
+
+    function getFighterIndex() {
+      const r = Math.random();
+      let cumulative = 0;
+      for (let i = 0; i < probabilities.length; i++) {
+        cumulative += probabilities[i];
+        if (r <= cumulative) {
+          return i;
+        }
+      }
+    }
+
     // create new fighters from the best ones
     const newFighters: Map<string, IFighter> = new Map();
     // first, add the top fighters to the new fighters
     for (const fighter of topN) {
+      fighter.prevScore = score(fighter);
+      fighter.score = null;
       newFighters[fighter.uuid] = fighter;
     }
     // then, create new fighters by combining the top fighters with mutations
     for (let i = 0; i < fightersPerEpoch; i++) {
       const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);
-      const parentA = topN[Math.floor(Math.random() * topN.length)].model;
-      const parentB = topN[Math.floor(Math.random() * topN.length)].model;
-      const factor = Math.random() * 4.0 - 2.0 + 0.5 ;
+      const parentA = topN[getFighterIndex()].model;
+      const parentB = topN[getFighterIndex()].model;
+      const factor = 0.5;
       const model = parentA.combine(parentB, factor);
       model.mutate({ rate: 0.5, std: 0.1 });
+      
       const player: IFighter = { model, callback: onFinished, uuid, score: null };
       newFighters[uuid] = player;
       addFighter(player, player.uuid);

@@ -11,8 +11,8 @@ const createModel = ({ inputSize, outputSize }) => {
   model.add(tf.layers.dense({ inputShape: [inputSize], units: 64, activation: 'relu' }));
 
   // Hidden layers
-  for (let i = 0; i < 0; i++) {
-    model.add(tf.layers.dense({ units: 4, activation: 'relu' }));
+  for (let i = 0; i < 4; i++) {
+    model.add(tf.layers.dense({ units: 64, activation: 'relu' }));
   }
 
   // Output layer
@@ -101,6 +101,44 @@ class Brain {
 
       return outputs;
     });
+  }
+
+  flatWeights() {
+    return tf.tidy(() => {
+      const weights = this.model.getWeights();
+      const flat = [];
+      for (let i = 0; i < weights.length; i++) {
+        const size = weights[i].size;
+        flat.push(tf.reshape(weights[i], [size]).dataSync());
+      }
+      return flat.reduce((acc, val) => acc.concat(Array.from(val)), []);;
+    });
+  }
+
+  toTranserable() {
+    return {
+      inputSize: this._inputSize,
+      outputSize: this._outputSize,
+      weights: this.flatWeights()
+    };
+  }
+
+  // static method to create a brain object from a transferable object
+  static fromTransferable({ inputSize, outputSize, weights }) {
+    const brain = new Brain({ inputSize, outputSize });
+    tf.tidy(() => {
+      const modelWeights = brain.model.getWeights();
+      let offset = 0;
+      for (let i = 0; i < modelWeights.length; i++) {
+        const size = modelWeights[i].size;
+        const shape = modelWeights[i].shape;
+        const values = weights.slice(offset, offset + size);
+        modelWeights[i] = tf.tensor(values, shape);
+        offset += size;
+      }
+      brain.model.setWeights(modelWeights);
+    });
+    return brain;
   }
 }
 

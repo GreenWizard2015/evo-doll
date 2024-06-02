@@ -15,8 +15,8 @@ interface IPlayerData {
 
 interface IFighterData extends IPlayerData {
   ref: any; // the ref of the player
-  state: any; // the state of the player
   action: number[]; // the action of the player
+  player: string; // the player name
 }
 
 interface IScores {
@@ -75,15 +75,15 @@ function Arena({
 
   const fighterA = useRef<IFighterData>({
     ...playerA,
-    state: null,
     action: null,
     ref: null,
+    player: 'playerA'
   });
   const fighterB = useRef<IFighterData>({
     ...playerB,
-    state: null,
     action: null,
     ref: null,
+    player: 'playerB'
   });
   // Save the mapping between the UUID of the body and the player
   function saveMapping(ref, player, fighter) {
@@ -124,11 +124,12 @@ function Arena({
   const isFinished = useRef(false);
   const onFrame = React.useCallback(({ scene }) => {
     const process = (playerData) => {
-      if (playerData) return;
-      const { player, action, model } = playerData
+      if (!playerData) return;
+      const { action, model, player } = playerData;
+      
       const state = encodeObservation({
         raycaster: raycaster.current,
-        player: playerData.ref,
+        player: playerData.ref.current,
         scene
       });
 
@@ -139,9 +140,9 @@ function Arena({
       });
       
       if(action) { // apply action if available
-        const maxForce = 500;
+        const maxForce = 10;        
         for (let i = 0; i < RAGDOLL_PARTS.length; i++) {
-          const { api } = player[RAGDOLL_PARTS[i]];
+          const { api } = playerData.ref.current[RAGDOLL_PARTS[i]];
           api.applyImpulse([action[i] * maxForce, 0, 0], [0, 0, 0]);
         }
       }
@@ -177,6 +178,7 @@ function Arena({
 
   function onCollide(e: CollisionEvent) {
     const { body, target } = e;
+    if (!body || !target) return; // sometimes the body or target is null
     const targetData = UUID2player.current[target.uuid];
     const bodyData = UUID2player.current[body.uuid];
 
@@ -190,7 +192,7 @@ function Arena({
     if (bodySpeed > targetSpeed) return; // only count if the body is faster
 
     const tmp = bodyVelocity.clone().sub(targetVelocity);
-    const score = 0;
+    const score = tmp.length();
     setScores((prevScores) => {
       const scoresNew = { ...prevScores };
       // penalize the player that is hit
@@ -200,14 +202,7 @@ function Arena({
         const globalHead = new THREE.Vector3();
         head.getWorldPosition(globalHead);
         scoresNew[targetData.player] += Math.max(0, globalHead.y);
-        
-        // add abs action to the score
-        const fighter = targetData.fighter.current;
-        const action = fighter.action || [];
-        for (let i = 0; i < action.length; i++) {
-          scoresNew[targetData.player] += Math.abs(action[i]);
-        }
-        // scoresNew[targetData.player] -= score;
+        scoresNew[targetData.player] -= score;
       }
       // reward the player that hits
       if (bodyData) {
@@ -215,22 +210,15 @@ function Arena({
         const globalHead = new THREE.Vector3();
         head.getWorldPosition(globalHead);
         scoresNew[bodyData.player] += Math.max(0, globalHead.y);
-        // add abs action to the score
-        const fighter = bodyData.fighter.current;
-        const action = fighter.action || [];
-        for (let i = 0; i < action.length; i++) {
-          scoresNew[bodyData.player] += Math.abs(action[i]);
-        }
+        
         // penalize the player that if the player hits anything that is not the other player
-        // scoresNew[bodyData.player] += targetData ? score : -1 * score;
+        scoresNew[bodyData.player] += targetData ? score : -1000;
       }
       return scoresNew;
     });
   }
   // common player props
-  const playerProps = {
-    onCollide,
-  };
+  const playerProps = { onCollide };
   return (
     <>
       <Ragdoll onState={bindPlayerA} props={{ position: [-2, 0, ZPos], ...playerProps }} />
