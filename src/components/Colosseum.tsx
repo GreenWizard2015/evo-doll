@@ -2,12 +2,6 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import Arena, { IFightFinishedEvent, IPlayerData, IScores } from './Arena';
 import { v5 as generateUUID } from "uuid";
 
-interface IArenaData {
-  brainA: IPlayerData;
-  brainB: IPlayerData;
-  uuid: any;
-}
-
 type IColosseumProps = {
   children?: React.ReactNode; // the children components
   totalArenas?: number; // the total number of arenas
@@ -52,11 +46,11 @@ function Colosseum({
     setBrainQueue((prevQueue) => [...prevQueue, player]);
   }, []);
 
-  function takeBrains() {
+  const takeBrains = useCallback(() => {
     const [brainA, brainB, ...rest] = brainQueue;
     setBrainQueue(([_a, _b, ...rest]) => rest);
     return [brainA, brainB];
-  }
+  }, [brainQueue]);
   ///////////////////
   const [arenas, setArenas] = useState<Array<JSX.Element | null>>(Array(totalArenas).fill(null));
   const [scores, setScores] = useState<IScores[]>(
@@ -75,14 +69,42 @@ function Colosseum({
     });
   }, []);
 
+  const [startNextFightFlag, setStartNextFightFlag] = useState(false);
+  const handleFinished = useCallback((ev: IFightFinishedEvent) => {
+    const { playerA, playerB, scores, uuid } = ev;
+    console.log('Fight finished:', playerA, playerB, scores, uuid);
+    
+    // send evaluation results to the players
+    playerA.callback({
+      score: scores.playerA,
+      uuid: playerA.uuid,
+      model: playerA.model,
+      arena: uuid
+    });
+    playerB.callback({
+      score: scores.playerB,
+      uuid: playerB.uuid,
+      model: playerB.model,
+      arena: uuid
+    });
+
+    // update the arena data
+    setArenas((prevArenas) => {
+      const newArenas = [...prevArenas];
+      newArenas[uuid] = null; // free the arena
+      return newArenas;
+    });
+    // trigger the next fight
+    setStartNextFightFlag(generateUUID(Date.now().toString(), generateUUID.DNS));
+  }, []);
+
+  /* eslint-disable react-hooks/exhaustive-deps */
   const startNextFight = useCallback(() => {
     const freeArenaIndex = arenas.indexOf(null);
     if (freeArenaIndex < 0) {
       console.log('No free arena');
       return;
     }
-    // BUG: brainQueue is not updated, and the same fighters are used in the next fight
-    //      Which causes the infinite loop of the same fighters fighting each other
     console.log(brainQueue.length, 'brains left');
     
     if (brainQueue.length < 2) {
@@ -110,38 +132,14 @@ function Colosseum({
       newArenas[freeArenaIndex] = newArena; // add the new arena data
       return newArenas;
     });
-  }, [brainQueue, onUpdateScores, arenas]);
+  }, [
+    arenas, brainQueue, handleFinished, onUpdateScores, takeBrains,
+    startNextFightFlag // trigger the next fight when the flag changes
+  ]);
 
   useEffect(() => {
     startNextFight();
   }, [brainQueue, startNextFight]); // start the next fight when the queue changes
-
-  const handleFinished = useCallback((ev: IFightFinishedEvent) => {
-    const { playerA, playerB, scores, uuid } = ev;
-    console.log('Fight finished:', playerA, playerB, scores, uuid);
-    
-    // send evaluation results to the players
-    playerA.callback({
-      score: scores.playerA,
-      uuid: playerA.uuid,
-      model: playerA.model,
-      arena: uuid
-    });
-    playerB.callback({
-      score: scores.playerB,
-      uuid: playerB.uuid,
-      model: playerB.model,
-      arena: uuid
-    });
-
-    // update the arena data
-    setArenas((prevArenas) => {
-      const newArenas = [...prevArenas];
-      newArenas[uuid] = null; // free the arena
-      return newArenas;
-    });
-    startNextFight(); // start the next fight if possible
-  }, [startNextFight]);
 
   return (
     <ColosseumProvider addFighter={addFighter}>

@@ -40,7 +40,7 @@ function FightManager({
       setLeft(left => left + 1);
     }
     fighters.current = fightersLocal;
-  }, []); // initialize the fighters on mount with very mutated models
+  }, [addFighter, fightersPerEpoch, onFinished]);
 
   return null;
 }
