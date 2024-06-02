@@ -143,7 +143,12 @@ function Arena({
         const maxForce = 10;        
         for (let i = 0; i < RAGDOLL_PARTS.length; i++) {
           const { api } = playerData.ref.current[RAGDOLL_PARTS[i]];
-          api.applyImpulse([action[i] * maxForce, 0, 0], [0, 0, 0]);
+          const vec = [
+            action[i * 3] * maxForce,
+            action[i * 3 + 1] * maxForce,
+            action[i * 3 + 2] * maxForce
+          ]
+          api.applyImpulse(vec, [0, 0, 0]);
         }
       }
     };
@@ -202,6 +207,7 @@ function Arena({
         const globalHead = new THREE.Vector3();
         head.getWorldPosition(globalHead);
         scoresNew[targetData.player] += Math.max(0, globalHead.y);
+        scoresNew[targetData.player] -= Math.pow(globalHead.x, 2);
         scoresNew[targetData.player] -= score;
       }
       // reward the player that hits
@@ -210,6 +216,7 @@ function Arena({
         const globalHead = new THREE.Vector3();
         head.getWorldPosition(globalHead);
         scoresNew[bodyData.player] += Math.max(0, globalHead.y);
+        scoresNew[bodyData.player] -= Math.pow(globalHead.x, 2);
         
         // penalize the player that if the player hits anything that is not the other player
         scoresNew[bodyData.player] += targetData ? score : -1000;

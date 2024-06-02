@@ -19,8 +19,8 @@ function FightManager({
   const [fighters, setFighters] = React.useState<Map<string, IFighter>>(new Map()); // store the fighters
   const [left, setLeft] = React.useState<number>(0); // number of fighters left to evaluate
   const [epoch, setEpoch] = React.useState<number>(0); // current epoch
-  const [highestScore, setHighestScore] = React.useState<number>(Number.MIN_VALUE);
-  const [lastHighest, setLastHighest] = React.useState<number>(Number.MIN_VALUE);
+  const [highestScore, setHighestScore] = React.useState<number>(-Number.MAX_VALUE); // highest score
+  const [lastHighest, setLastHighest] = React.useState<number>(-Number.MAX_VALUE); // last highest score
 
   React.useEffect(() => {
     const stats = [
@@ -48,7 +48,7 @@ function FightManager({
     if (left > 0) return;
     setEpoch(epoch => epoch + 1); // next epoch
     setLastHighest(highestScore); // update the last highest score
-    setHighestScore(Number.MIN_VALUE); // reset the highest score
+    setHighestScore(-Number.MAX_VALUE); // reset the highest score
 
     const fightersArray: IFighter[] = Object.values(fighters);
     if (fightersArray.length === 0) { // we just started
@@ -57,7 +57,7 @@ function FightManager({
       const fightersLocal: Map<string, IFighter> = new Map();
       for (let i = 0; i < fightersPerEpoch; i++) {
         const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);
-        const model = new Brain({ inputSize: 240, outputSize: RAGDOLL_PARTS.length });
+        const model = new Brain({ inputSize: 240, outputSize: RAGDOLL_PARTS.length * 3});
         // apply huge mutation to the model
         model.mutate({ rate: 1.0, std: 10.0 });
         const player: IFighter = { 
@@ -100,6 +100,7 @@ function FightManager({
           return i;
         }
       }
+      return probabilities.length - 1;
     }
 
     // create new fighters from the best ones
