@@ -10,11 +10,11 @@ const createModel = ({ inputSize, outputSize }) => {
   const model = tf.sequential();
 
   // Input layer
-  model.add(tf.layers.dense({ inputShape: [inputSize], units: 256, activation: 'relu' }));
+  model.add(tf.layers.dense({ inputShape: [inputSize], units: 16, activation: 'relu' }));
 
   // Hidden layers
   for (let i = 0; i < 4; i++) {
-    model.add(tf.layers.dense({ units: 256, activation: 'relu' }));
+    model.add(tf.layers.dense({ units: 8, activation: 'relu' }));
   }
 
   // Output layer
@@ -56,16 +56,14 @@ class Brain {
   // Copying weights to the new model, mutates the copied model, and returns a new brain object with the mutated copied model.
   copy({ mutate=true }) {
     return tf.tidy(() => {
-      const modelCopy = createModel({ inputSize: this.input_count, outputSize: this.output_count });
       const weights = this.model.getWeights();
       const weightCopies = [];
       for (let i = 0; i < weights.length; i++) {
         weightCopies[i] = weights[i].clone();
       }
-      modelCopy.setWeights(weightCopies);
 
-      let brain = new Brain();
-      brain.model = modelCopy;
+      let brain = new Brain({ inputSize: this._inputSize, outputSize: this._outputSize });
+      brain.model.setWeights(weightCopies);
       if (mutate) brain.mutate();
 
       return brain;
@@ -89,8 +87,10 @@ class Brain {
 
         newWeights[i] = tf.tensor(newValues, shape);
       }
-
-      this.model.setWeights(newWeights);
+      // create a new brain object with the combined weights
+      const newBrain = new Brain({ inputSize: this._inputSize, outputSize: this._outputSize });
+      newBrain.model.setWeights(newWeights);
+      return newBrain;
     });
   }
 

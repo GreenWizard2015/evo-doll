@@ -4,6 +4,7 @@ import { RAGDOLL_PARTS, Ragdoll, encodeObservation } from "./Ragdoll";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from 'three';
 import { runInference } from "./InferenceWorker";
+import { useBox } from "@react-three/cannon";
 
 interface IPlayerData {
   model: any; // the brain model
@@ -41,6 +42,27 @@ type IArenaProps = {
   onFinished: IOnFinished; // the callback when the fight is finished
   updateScores: (scores: IScores, uuid: any) => void;
 };
+
+function Wall({ position, rotation, args, opacity, transparent }) {
+  const [ref] = useBox(() => ({
+    position,
+    rotation,
+    args,
+    material: {
+      friction: 1 
+    }
+  }));
+
+  return (
+    <>
+      {/* @ts-ignore */}
+      <mesh ref={ref} name='wall' receiveShadow>
+        <boxGeometry args={args} />
+        <meshStandardMaterial color="gray" transparent={transparent} opacity={opacity} />
+      </mesh>
+    </>
+  );
+}
 
 function Arena({
   ZPos, updateScores, uuid, timeLimit, playerA, playerB,
@@ -155,6 +177,8 @@ function Arena({
     const { body, target } = e;
     const targetData = UUID2player.current[target.uuid];
     const bodyData = UUID2player.current[body.uuid];
+
+    if (bodyData?.player === targetData?.player) return; // ignore collision between the same player
     
     const bodyVelocity = bodyData?.velocity.current || new THREE.Vector3();
     const targetVelocity = targetData?.velocity.current || new THREE.Vector3();
@@ -174,7 +198,7 @@ function Arena({
       // reward the player that hits
       if (bodyData) {
         // penalize the player that if the player hits anything that is not the other player
-        scoresNew[bodyData.player] += targetData ? score : -score;
+        scoresNew[bodyData.player] += targetData ? score : -0.1 * score;
       }
       return scoresNew;
     });
@@ -182,14 +206,20 @@ function Arena({
   // common player props
   const playerProps = {
     onCollide,
-    // moving only on x and z axis
-    linearFactor: [1, 1, 0],
-    angularFactor: [0, 1, 0],
   };
   return (
     <>
       <Ragdoll onState={bindPlayerA} props={{ position: [-2, 0, ZPos], ...playerProps }} />
       <Ragdoll onState={bindPlayerB} props={{ position: [2, 0, ZPos], ...playerProps }} />
+      {/* Invisible Walls to restrict the players */}
+      <Wall 
+        position={[0, 0, ZPos-1]} rotation={[0, 0, 0]} args={[100, 100, 0.1]} 
+        opacity={0.} transparent 
+      />
+      <Wall 
+        position={[0, 0, ZPos-1]} rotation={[0, 0, 0]} args={[100, 100, 0.1]} 
+        opacity={0.} transparent
+      />
     </>
   );
 }

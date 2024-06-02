@@ -14,6 +14,7 @@ const App: React.FC = () => {
     { playerA: 0, playerB: 0 }, // Arena 1
     { playerA: 0, playerB: 0 }, // Arena 2
   ]);
+  const [fightStats, setFightStats] = React.useState<Array<React.ReactNode> | null>(null);
 
   return (
     <>
@@ -24,8 +25,8 @@ const App: React.FC = () => {
         <Physics>
           <Scene />
 
-          <Colosseum totalArenas={2} updateScores={setScores}>
-            <FightManager />
+          <Colosseum totalArenas={10} updateScores={setScores}>
+            <FightManager updateStats={setFightStats} fightersPerEpoch={50} seedsN={20} />
           </Colosseum>
         </Physics>
         <OrbitControls />
@@ -37,6 +38,7 @@ const App: React.FC = () => {
             <div>Arena {i + 1} | Player A: {scores.playerA} | Player B: {scores.playerB}</div>
           </div>
         ))}
+        {fightStats}
       </div>
       <InferenceWorker />
     </>
