@@ -3,22 +3,20 @@ import * as tf from '@tensorflow/tfjs';
 // Prevents OutOfMemory - forces TFJS to clear WebGL textures when reaching 256Mb
 tf.env().set("WEBGL_DELETE_TEXTURE_THRESHOLD", 256000000);
 
-const MUTATION_RATE = 0.1;
-
 // Define the model creation function
 const createModel = ({ inputSize, outputSize }) => {
   const model = tf.sequential();
 
   // Input layer
-  model.add(tf.layers.dense({ inputShape: [inputSize], units: 16, activation: 'relu' }));
+  model.add(tf.layers.dense({ inputShape: [inputSize], units: 64, activation: 'relu' }));
 
   // Hidden layers
-  for (let i = 0; i < 4; i++) {
-    model.add(tf.layers.dense({ units: 8, activation: 'relu' }));
+  for (let i = 0; i < 0; i++) {
+    model.add(tf.layers.dense({ units: 4, activation: 'relu' }));
   }
 
   // Output layer
-  model.add(tf.layers.dense({ units: outputSize, activation: 'sigmoid' }));
+  model.add(tf.layers.dense({ units: outputSize, activation: 'tanh' }));
   return model;
 };
 
@@ -34,7 +32,7 @@ class Brain {
   }
 
   // Mutating the weights of a neural network model in a genetic algorithm with a given mutation rate and a random Gaussian function.
-  mutate({ rate=MUTATION_RATE, std=0.1}) {
+  mutate({ rate, std=0.1}) {
     tf.tidy(() => {
       const weights = this.model.getWeights();
       const mutatedWeights = [];
@@ -71,14 +69,14 @@ class Brain {
   }
 
   combine(brain, factor=0.5) {
-    // Combine the weights of two neural network models by averaging the weights of the two models.
-    tf.tidy(() => {
+    return tf.tidy(() => {
       const weights1 = this.model.getWeights();
       const weights2 = brain.model.getWeights();
       const newWeights = [];
 
       for (let i = 0; i < weights1.length; i++) {
         const A = weights1[i];
+        const shape = A.shape;
         const B = weights2[i];
         const newValues = tf.add(
           tf.mul(A, factor),

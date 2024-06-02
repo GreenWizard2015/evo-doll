@@ -9,7 +9,8 @@ import { useBox } from "@react-three/cannon";
 interface IPlayerData {
   model: any; // the brain model
   uuid: any; // the UUID of the player
-  callback?: any; // the callback when the player is evaluated
+  // reference to the callback function
+  callback?: React.MutableRefObject<(any) => void>;
 }
 
 interface IFighterData extends IPlayerData {
@@ -85,21 +86,22 @@ function Arena({
     ref: null,
   });
   // Save the mapping between the UUID of the body and the player
-  function saveMapping(ref, player) {
+  function saveMapping(ref, player, fighter) {
     for (const partName in ref.current) {
       const { ref: rf, ...data } = ref.current[partName];
       UUID2player.current[rf.current.uuid] = {
-        ...data, ref: rf, partName, player
+        ...data, ref: rf, partName, player,
+        parts: ref, fighter
       };
     }
   }
 
   function bindPlayerA(ref) {
-    saveMapping(ref, 'playerA');
+    saveMapping(ref, 'playerA', fighterA);
     fighterA.current.ref = ref;
   }
   function bindPlayerB(ref) {
-    saveMapping(ref, 'playerB');
+    saveMapping(ref, 'playerB', fighterB);
     fighterB.current.ref = ref;
   }
 
@@ -137,7 +139,7 @@ function Arena({
       });
       
       if(action) { // apply action if available
-        const maxForce = 25;
+        const maxForce = 500;
         for (let i = 0; i < RAGDOLL_PARTS.length; i++) {
           const { api } = player[RAGDOLL_PARTS[i]];
           api.applyImpulse([action[i] * maxForce, 0, 0], [0, 0, 0]);
@@ -188,17 +190,39 @@ function Arena({
     if (bodySpeed > targetSpeed) return; // only count if the body is faster
 
     const tmp = bodyVelocity.clone().sub(targetVelocity);
-    const score = tmp.length() - 20;
+    const score = 0;
     setScores((prevScores) => {
       const scoresNew = { ...prevScores };
       // penalize the player that is hit
       if(targetData) {
-        scoresNew[targetData.player] -= score;
+        // add head position to the score
+        const head = targetData.parts.current['head'].ref.current;
+        const globalHead = new THREE.Vector3();
+        head.getWorldPosition(globalHead);
+        scoresNew[targetData.player] += Math.max(0, globalHead.y);
+        
+        // add abs action to the score
+        const fighter = targetData.fighter.current;
+        const action = fighter.action || [];
+        for (let i = 0; i < action.length; i++) {
+          scoresNew[targetData.player] += Math.abs(action[i]);
+        }
+        // scoresNew[targetData.player] -= score;
       }
       // reward the player that hits
       if (bodyData) {
+        const head = bodyData.parts.current['head'].ref.current;
+        const globalHead = new THREE.Vector3();
+        head.getWorldPosition(globalHead);
+        scoresNew[bodyData.player] += Math.max(0, globalHead.y);
+        // add abs action to the score
+        const fighter = bodyData.fighter.current;
+        const action = fighter.action || [];
+        for (let i = 0; i < action.length; i++) {
+          scoresNew[bodyData.player] += Math.abs(action[i]);
+        }
         // penalize the player that if the player hits anything that is not the other player
-        scoresNew[bodyData.player] += targetData ? score : -0.1 * score;
+        // scoresNew[bodyData.player] += targetData ? score : -1 * score;
       }
       return scoresNew;
     });

@@ -41,7 +41,7 @@ function Colosseum({
     if(!player.callback) {
       throw new Error('The player must have a callback function');
     }
-    console.log('Adding fighter', player);
+    // console.log('Adding fighter', player);
     
     setBrainQueue((prevQueue) => [...prevQueue, player]);
   }, []);
@@ -72,16 +72,16 @@ function Colosseum({
   const [startNextFightFlag, setStartNextFightFlag] = useState(false);
   const handleFinished = useCallback((ev: IFightFinishedEvent) => {
     const { playerA, playerB, scores, uuid } = ev;
-    console.log('Fight finished:', playerA, playerB, scores, uuid);
+    // console.log('Fight finished:', playerA, playerB, scores, uuid);
     
     // send evaluation results to the players
-    playerA.callback({
+    playerA.callback.current({
       score: scores.playerA,
       uuid: playerA.uuid,
       model: playerA.model,
       arena: uuid
     });
-    playerB.callback({
+    playerB.callback.current({
       score: scores.playerB,
       uuid: playerB.uuid,
       model: playerB.model,
@@ -102,14 +102,14 @@ function Colosseum({
   const startNextFight = useCallback(() => {
     const freeArenaIndex = arenas.indexOf(null);
     if (freeArenaIndex < 0) {
-      console.log('No free arena');
+      // console.log('No free arena');
       return;
     }
-    console.log(brainQueue.length, 'brains left');
+    // console.log(brainQueue.length, 'brains left');
     
     if (brainQueue.length < 2) {
-      console.log('Not enough brains to fight');
-      console.log('Queue:', brainQueue);
+      // console.log('Not enough brains to fight');
+      // console.log('Queue:', brainQueue);
       return;
     }
 
