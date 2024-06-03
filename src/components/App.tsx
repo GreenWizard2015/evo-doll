@@ -31,8 +31,20 @@ const App: React.FC = () => {
     borderRadius: '5px',
     width: '100%',
   };
+  const sidebarStyle: CSSProperties = {
+    position: 'absolute', top: 0, right: 0, 
+    color: 'white', padding: '10px', background: 'rgba(0, 0, 0, 0.5)', 
+    borderRadius: '5px',
+    width: '300px',
+    height: '100%'
+  };
 
   const [timeLimit, setTimeLimit] = React.useState<number>(10);
+  const [runId, setRunId] = React.useState<string>(Date.now().toString());
+
+  const newRun = React.useCallback(() => {
+    setRunId(Date.now().toString());
+  }, []);
 
   return (
     <>
@@ -44,6 +56,7 @@ const App: React.FC = () => {
           <Scene />
 
           <Colosseum 
+            key={runId}
             totalArenas={totalArenas} updateScores={setScores} isPaused={isPaused}
             timeLimit={timeLimit * 1000}
           >
@@ -67,17 +80,11 @@ const App: React.FC = () => {
       </div>
       <InferenceWorker />
       {/* right sidebar */}
-      <div style={{ 
-        position: 'absolute', top: 0, right: 0, 
-        color: 'white', padding: '10px', background: 'rgba(0, 0, 0, 0.5)', 
-        borderRadius: '5px',
-        width: '300px',
-        height: '100%'
-      }}>
+      <div style={sidebarStyle}>
         <div>
           <label>Total arenas ({totalArenas})</label>
           <FormRange 
-            min={1} max={100} value={totalArenas} 
+            min={1} max={20} value={totalArenas} 
             onChange={(e) => setTotalArenas(parseInt(e.target.value))} 
           />
         </div>
@@ -102,6 +109,10 @@ const App: React.FC = () => {
             onChange={(e) => setTimeLimit(parseInt(e.target.value))}
           />
         </div>
+        {/* button to start a new run */}
+        <button style={{background: 'blue', color: 'white', padding: '10px', borderRadius: '5px', width: '100%', marginTop: '10px'}} onClick={newRun}>
+          New run
+        </button>
         {/* at bottom green button */}
         <button style={btnStyle} onClick={togglePause}>
           {isPaused ? 'Resume' : 'Pause'}
