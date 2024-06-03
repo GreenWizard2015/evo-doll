@@ -6,6 +6,8 @@ type IColosseumProps = {
   children?: React.ReactNode; // the children components
   totalArenas?: number; // the total number of arenas
   updateScores: (scores: IScores[]) => void; // the callback to update the scores per arena
+  isPaused: boolean; // the pause flag
+  timeLimit?: number; // the time limit of the arena in milliseconds
 };
 
 // AddFighter context
@@ -32,7 +34,7 @@ function ColosseumProvider({ children, addFighter }) {
 };
 
 function Colosseum({
-  totalArenas = 2, updateScores, children
+  totalArenas = 2, updateScores, children, isPaused, timeLimit
 }: IColosseumProps) {
   // for provider
   const [brainQueue, setBrainQueue] = useState<IPlayerData[]>([]);
@@ -52,7 +54,7 @@ function Colosseum({
     return [brainA, brainB];
   }, [brainQueue]);
   ///////////////////
-  const [arenas, setArenas] = useState<Array<JSX.Element | null>>(Array(totalArenas).fill(null));
+  const [arenas, setArenas] = useState(Array(totalArenas).fill(null));
   const [scores, setScores] = useState<IScores[]>(
     Array(totalArenas).fill({ playerA: 0, playerB: 0 })
   );
@@ -101,30 +103,22 @@ function Colosseum({
   /* eslint-disable react-hooks/exhaustive-deps */
   const startNextFight = useCallback(() => {
     const freeArenaIndex = arenas.indexOf(null);
-    if (freeArenaIndex < 0) {
-      // console.log('No free arena');
-      return;
-    }
-    // console.log(brainQueue.length, 'brains left');
-    
-    if (brainQueue.length < 2) {
-      // console.log('Not enough brains to fight');
-      // console.log('Queue:', brainQueue);
-      return;
-    }
-
+    if (freeArenaIndex < 0) return; // no free arenas
+    if (brainQueue.length < 2) return;
     // take the next two brains from the queue
     const [brainA, brainB] = takeBrains();
-    const newArena = ( // create the new arena
+    // prevent recreating the arena on each render
+    const arenaKey = generateUUID(Date.now().toString(), generateUUID.DNS);
+    const newArena = (props) => ( // create the new arena
       <Arena
-        key={generateUUID(Date.now().toString(), generateUUID.DNS)}
+        key={arenaKey}
         uuid={freeArenaIndex}
-        ZPos={freeArenaIndex * 2}
-        timeLimit={10 * 1000}
+        ZPos={freeArenaIndex * -2}
         playerA={brainA}
         playerB={brainB}
         updateScores={onUpdateScores}
         onFinished={handleFinished}
+        {...props}
       />
     );
     setArenas((prevArenas) => {
@@ -143,7 +137,7 @@ function Colosseum({
 
   return (
     <ColosseumProvider addFighter={addFighter}>
-      {arenas}
+      {arenas.map((f) => f ? f({ isPaused: isPaused, timeLimit }) : null)}
       {children}
     </ColosseumProvider>
   );

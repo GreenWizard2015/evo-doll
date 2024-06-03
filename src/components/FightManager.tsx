@@ -30,7 +30,7 @@ function FightManager({
       <div key={'highest'}>Highest score: {highestScore}</div>,
     ];
     updateStats(stats);
-  }, [left, epoch, updateStats, highestScore]);
+  }, [left, epoch, updateStats, highestScore, lastHighest]);
 
   const onFinishedFun = React.useCallback(({score, uuid, model}) => {
     fighters[uuid].score = score; // update the score
@@ -128,7 +128,10 @@ function FightManager({
       setLeft(left => left + 1);
     }
     setFighters(newFighters);
-  }, [left, fighters, fightersPerEpoch, seedsN, addFighter, onFinished, epoch, setFighters, setLeft, setEpoch, setLastHighest, setHighestScore]);
+  }, [
+    left, fighters, fightersPerEpoch, addFighter, onFinished, seedsN,
+    highestScore, lastHighest
+  ]);
 
   React.useEffect(() => {
     return () => {
@@ -138,7 +141,7 @@ function FightManager({
         fighter.model.dispose();
       }
     };
-  }, []);
+  }, [fighters]);
   return null;
 }
 

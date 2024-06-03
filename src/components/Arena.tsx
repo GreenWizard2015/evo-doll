@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useCallback } from "react";
 import { CollisionEvent } from "../helpers/CollisionEvent";
 import { RAGDOLL_PARTS, Ragdoll, encodeObservation } from "./Ragdoll";
 import { useFrame } from "@react-three/fiber";
@@ -42,6 +42,8 @@ type IArenaProps = {
   
   onFinished: IOnFinished; // the callback when the fight is finished
   updateScores: (scores: IScores, uuid: any) => void;
+
+  isPaused: boolean; // the pause flag
 };
 
 function Wall({ position, rotation, args, opacity, transparent }) {
@@ -67,9 +69,9 @@ function Wall({ position, rotation, args, opacity, transparent }) {
 
 function Arena({
   ZPos, updateScores, uuid, timeLimit, playerA, playerB,
-  onFinished
+  onFinished, isPaused
 }: IArenaProps) {
-  const startTimestamp = useRef(Date.now());
+  const elapsed = useRef(0);
   const UUID2player = useRef({ });
   const [scores, setScores] = React.useState<IScores>({ playerA: 0, playerB: 0 });
 
@@ -105,11 +107,11 @@ function Arena({
     fighterB.current.ref = ref;
   }
 
-  React.useEffect(() => {
+  useEffect(() => {
     updateScores(scores, uuid);
   }, [scores, updateScores, uuid]); // update the scores when the scores change
 
-  const onInference = React.useCallback(({ data, uuid }) => {
+  const onInference = useCallback(({ data, uuid }) => {
     if (uuid === 'playerA') {
       fighterA.current.action = data;
     } else if (uuid === 'playerB') {
@@ -122,7 +124,10 @@ function Arena({
 
   const raycaster = useRef(new THREE.Raycaster());
   const isFinished = useRef(false);
-  const onFrame = React.useCallback(({ scene }) => {
+  const onFrame = useCallback(({ scene }, delta) => {
+    if (isPaused) return; // Skip processing if the arena is paused
+    elapsed.current += delta * 1000; // ms to seconds
+
     const process = (playerData) => {
       if (!playerData) return;
       const { action, model, player } = playerData;
@@ -140,20 +145,20 @@ function Arena({
       });
       
       if(action) { // apply action if available
-        const maxForce = 10;        
+        const maxForce = 1;
         for (let i = 0; i < RAGDOLL_PARTS.length; i++) {
           const { api } = playerData.ref.current[RAGDOLL_PARTS[i]];
           const vec = [
             action[i * 3] * maxForce,
             action[i * 3 + 1] * maxForce,
             action[i * 3 + 2] * maxForce
-          ]
+          ];
           api.applyImpulse(vec, [0, 0, 0]);
         }
       }
     };
-    ////////////////////////////
-    if (Date.now() - startTimestamp.current > timeLimit) {
+
+    if (timeLimit < elapsed.current) {
       if (!isFinished.current) {
         isFinished.current = true;
         const playerA: IPlayerData = {
@@ -177,11 +182,13 @@ function Arena({
     }
     process(fighterA.current);
     process(fighterB.current);
-  }, [onInference, timeLimit, onFinished, uuid, scores]);
+  }, [onInference, timeLimit, onFinished, uuid, scores, isPaused, elapsed]);
 
   useFrame(onFrame);
 
   function onCollide(e: CollisionEvent) {
+    if (isPaused) return; // Skip collision processing if the arena is paused
+
     const { body, target } = e;
     if (!body || !target) return; // sometimes the body or target is null
     const targetData = UUID2player.current[target.uuid];
@@ -236,7 +243,7 @@ function Arena({
         opacity={0.} transparent 
       />
       <Wall 
-        position={[0, 0, ZPos-1]} rotation={[0, 0, 0]} args={[100, 100, 0.1]} 
+        position={[0, 0, ZPos+1]} rotation={[0, 0, 0]} args={[100, 100, 0.1]} 
         opacity={0.} transparent
       />
     </>

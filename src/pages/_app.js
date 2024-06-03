@@ -1,6 +1,8 @@
 // import { AppStore } from '../store';
 import './global.css';
 import Head from 'next/head';
+// bootstrap css
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 export default function MyApp({
   Component,
