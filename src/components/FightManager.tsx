@@ -116,11 +116,13 @@ function FightManager({
       const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);
       const parentA = topN[getFighterIndex()].model;
       const parentB = topN[getFighterIndex()].model;
-      const factor = 0.5;
+      const factor = 0.5; // average the weights
       const model = parentA.combine(parentB, factor);
-      model.mutate({ rate: 0.5, std: 0.1 });
+      model.mutate({ rate: 0.5, std: 0.001 });
       
-      const player: IFighter = { model, callback: onFinished, uuid, score: null };
+      const player: IFighter = {
+        model, callback: onFinished, uuid, score: null, prevScore: null
+      };
       newFighters[uuid] = player;
       addFighter(player, player.uuid);
       setLeft(left => left + 1);
