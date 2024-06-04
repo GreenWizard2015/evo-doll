@@ -111,15 +111,15 @@ function Arena({
     updateScores(scores, uuid);
   }, [scores, updateScores, uuid]); // update the scores when the scores change
 
-  const onInference = useCallback(({ data, uuid }) => {
-    if (uuid === 'playerA') {
-      fighterA.current.action = data;
-    } else if (uuid === 'playerB') {
-      fighterB.current.action = data;
-    } else {
+  const onInference = useCallback(({ data, uuid, state, extras }) => {
+    // UUID is the UUID of the head
+    const playerData = UUID2player.current[uuid];
+    if (!playerData) {
       console.error('Unknown player', uuid);
       throw new Error(`Unknown player ${uuid}!`);
     }
+    const { fighter } = playerData;
+    fighter.current.action = data;
   }, []);
 
   const raycaster = useRef(new THREE.Raycaster());
@@ -130,7 +130,7 @@ function Arena({
 
     const process = (playerData) => {
       if (!playerData) return;
-      const { action, model, player } = playerData;
+      const { action, model, ref } = playerData;
       
       const state = encodeObservation({
         raycaster: raycaster.current,
@@ -138,10 +138,12 @@ function Arena({
         scene
       });
 
+      const head = ref.current['head'].ref.current;
       runInference({
         model, state,
         callback: onInference,
-        uuid: player
+        uuid: head.uuid,
+        extras: { time: elapsed.current }
       });
       
       if(action) { // apply action if available

@@ -7,7 +7,7 @@ export interface InferenceResult {
 
 let worker;
 const CALLBACKS_BY_UUID = {};
-function runInference({ model, state, callback, uuid }) {
+function runInference({ model, state, callback, uuid, extras}) {
   if(!worker) {
     throw new Error('Worker not initialized');
   }
@@ -15,8 +15,7 @@ function runInference({ model, state, callback, uuid }) {
   worker.postMessage({
     type: 'runInference',
     model: model.toTranserable(),
-    state: state,
-    uuid: uuid,
+    state, uuid, extras
   });
 }
 
@@ -28,9 +27,9 @@ function InferenceWorker({ }) {
     newWorker.onmessage = function(e) {
       const { status } = e.data;
       if('done' === status) {
-        const { data, uuid } = e.data;
+        const { data, uuid, state, extras } = e.data;
         const callback = CALLBACKS_BY_UUID[uuid];
-        callback({ data, uuid });
+        callback({ data, uuid, state, extras });
         return;
       }
       throw new Error('Unknown status: ' + status);
