@@ -14,7 +14,7 @@ interface IPlayerData {
 }
 
 interface IFighterData extends IPlayerData {
-  ref: any; // the ref of the player
+  ref: React.MutableRefObject<any>; // the reference to the ragdoll object
   action: number[]; // the action of the player
   player: string; // the player name
 }
@@ -128,7 +128,7 @@ function Arena({
     if (isPaused) return; // Skip processing if the arena is paused
     elapsed.current += delta * 1000; // ms to seconds
 
-    const process = (playerData) => {
+    const process = (playerData: IFighterData) => {
       if (!playerData) return;
       const { action, model, ref } = playerData;
       
@@ -160,30 +160,27 @@ function Arena({
       }
     };
 
-    if (timeLimit < elapsed.current) {
-      if (!isFinished.current) {
-        isFinished.current = true;
-        const playerA: IPlayerData = {
-          model: fighterA.current.model,
-          uuid: fighterA.current.uuid,
-          callback: fighterA.current.callback
-        };
-        const playerB: IPlayerData = {
-          model: fighterB.current.model,
-          uuid: fighterB.current.uuid,
-          callback: fighterB.current.callback
-        };
-        onFinished({
-          playerA,
-          playerB,
-          uuid,
-          scores
-        });
-      }
+    if (elapsed.current < timeLimit) {
+      process(fighterA.current);
+      process(fighterB.current);
       return;
     }
-    process(fighterA.current);
-    process(fighterB.current);
+    // we beyond the time limit
+    if (isFinished.current) return; // we already finished
+
+    isFinished.current = true;
+    const playerA: IPlayerData = {
+      model: fighterA.current.model,
+      uuid: fighterA.current.uuid,
+      callback: fighterA.current.callback
+    };
+    const playerB: IPlayerData = {
+      model: fighterB.current.model,
+      uuid: fighterB.current.uuid,
+      callback: fighterB.current.callback
+    };
+    // call the onFinished callback with all necessary data
+    onFinished({ playerA, playerB, uuid, scores });
   }, [onInference, timeLimit, onFinished, uuid, scores, isPaused, elapsed]);
 
   useFrame(onFrame);
