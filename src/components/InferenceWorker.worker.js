@@ -13,19 +13,22 @@ async function processQueue() {
   const task = queue[taskId];
   delete queue[taskId];
 
-  const { model, state, callback } = task;
+  const { model, state, extras } = task;
   const brain = Brain.fromTransferable(model);
   const results = brain.predict(state);
   brain.dispose();
-  self.postMessage({ status: "done", data: results, callback, uuid: taskId });
+  self.postMessage({
+    status: "done", data: results, uuid: taskId,
+    extras
+  });
   
   processQueue(); // Process next task
 }
 
 self.onmessage = async function({ data }) {
   if (data.type === "runInference") {
-    const { model, state, callback, uuid } = data;
-    queue[uuid] = { model, state, callback };
+    const { model, state, uuid, extras } = data;
+    queue[uuid] = { model, state, extras };
     if (!running) {
       processQueue();
     }

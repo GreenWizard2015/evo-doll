@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from 'three';
 import { runInference } from "./InferenceWorker";
 import { useBox } from "@react-three/cannon";
+import { ReplayBuffer } from "./ReplayBuffer";
 
 interface IPlayerData {
   model: any; // the brain model
@@ -16,6 +17,7 @@ interface IPlayerData {
 interface IFighterData extends IPlayerData {
   ref: React.MutableRefObject<any>; // the reference to the ragdoll object
   action: number[]; // the action of the player
+  state: number[]; // the last state of the player
   player: string; // the player name
 }
 
@@ -78,12 +80,14 @@ function Arena({
   const fighterA = useRef<IFighterData>({
     ...playerA,
     action: null,
+    state: null,
     ref: null,
     player: 'playerA'
   });
   const fighterB = useRef<IFighterData>({
     ...playerB,
     action: null,
+    state: null,
     ref: null,
     player: 'playerB'
   });
@@ -120,6 +124,12 @@ function Arena({
     }
     const { fighter } = playerData;
     fighter.current.action = data;
+    ReplayBuffer.add({
+      state, action: data, 
+      score: extras.time,
+      time: extras.time,
+      runId: uuid, isDone: false
+    });
   }, []);
 
   const raycaster = useRef(new THREE.Raycaster());
@@ -181,6 +191,23 @@ function Arena({
     };
     // call the onFinished callback with all necessary data
     onFinished({ playerA, playerB, uuid, scores });
+    // save data to the replay buffer
+    ReplayBuffer.add({
+      state: fighterA.current.state,
+      action: fighterA.current.action,
+      time: elapsed.current,
+      score: scores.playerA,
+      runId: fighterA.current.ref.current['head'].ref.current.uuid,
+      isDone: true
+    });
+    ReplayBuffer.add({
+      state: fighterB.current.state,
+      action: fighterB.current.action,
+      time: elapsed.current,
+      score: scores.playerB,
+      runId: fighterB.current.ref.current['head'].ref.current.uuid,
+      isDone: true
+    });
   }, [onInference, timeLimit, onFinished, uuid, scores, isPaused, elapsed]);
 
   useFrame(onFrame);
