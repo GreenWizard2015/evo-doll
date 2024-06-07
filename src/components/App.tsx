@@ -9,11 +9,12 @@ import Colosseum from './Colosseum';
 import { IScores } from './Arena';
 import FightManager from './FightManager';
 import FormRange from 'react-bootstrap/FormRange';
+import Trainer from './Trainer';
 
 const App: React.FC = () => {
   const [scores, setScores] = React.useState<IScores[]>([]);
   const [fightStats, setFightStats] = React.useState<Array<React.ReactNode>>([]);
-  const [totalArenas, setTotalArenas] = React.useState<number>(10);
+  const [totalArenas, setTotalArenas] = React.useState<number>(3);
   const [fightersPerEpoch, setFightersPerEpoch] = React.useState<number>(100);
   const [seedsN, setSeedsN] = React.useState<number>(20);
   const [isPaused, setIsPaused] = React.useState<boolean>(false);
@@ -55,16 +56,19 @@ const App: React.FC = () => {
         <Physics isPaused={isPaused} allowSleep={false}>
           <Scene />
 
+          
           <Colosseum 
             key={runId}
             totalArenas={totalArenas} updateScores={setScores} isPaused={isPaused}
             timeLimit={timeLimit * 1000}
           >
-            <FightManager 
-              updateStats={setFightStats} 
-              fightersPerEpoch={fightersPerEpoch} 
-              seedsN={seedsN} 
-            />
+            <Trainer>
+              <FightManager 
+                updateStats={setFightStats} 
+                fightersPerEpoch={fightersPerEpoch} 
+                seedsN={seedsN} 
+              />
+            </Trainer>
           </Colosseum>
         </Physics>
         <OrbitControls />

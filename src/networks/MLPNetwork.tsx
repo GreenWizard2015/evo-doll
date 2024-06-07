@@ -4,27 +4,41 @@ import * as tf from '@tensorflow/tfjs';
 tf.env().set("WEBGL_DELETE_TEXTURE_THRESHOLD", 256000000);
 
 // Define the model creation function
-const createModel = ({ inputSize, outputSize }) => {
+const createModel = ({
+  inputSize, outputSize,
+  hiddenLayers = 4, hiddenUnits = 64,
+  finalActivation = 'tanh'
+}) => {
   const model = tf.sequential();
-
+  
   // Input layer
-  model.add(tf.layers.dense({ inputShape: [inputSize], units: 64, activation: 'relu' }));
-
+  model.add(tf.layers.dense({ inputShape: [inputSize], units: hiddenUnits, activation: 'relu' }));
+  
   // Hidden layers
-  for (let i = 0; i < 4; i++) {
-    model.add(tf.layers.dense({ units: 64, activation: 'relu' }));
+  for (let i = 0; i < hiddenLayers; i++) {
+    model.add(tf.layers.dense({ units: hiddenUnits, activation: 'relu' }));
   }
-
+  
   // Output layer
-  model.add(tf.layers.dense({ units: outputSize, activation: 'tanh' }));
+  model.add(tf.layers.dense({
+    units: outputSize,
+    activation: finalActivation as any
+  }));
   return model;
 };
 
-class Brain {
-  constructor({ inputSize, outputSize }) {
-    this._inputSize = inputSize;
-    this._outputSize = outputSize;
-    this.model = createModel({ inputSize: this._inputSize, outputSize: this._outputSize });
+class CMLPNetwork {
+  private _config: any;
+  private _optimizer: tf.Optimizer;
+  private model: tf.Sequential;
+
+  constructor(config, optimizer=null) {
+    this._config = config;
+    this._optimizer = optimizer;
+    this.model = createModel(config);
+    if (optimizer) {
+      this.model.compile({ optimizer, loss: [null] });
+    }
   }
 
   dispose() {
@@ -51,8 +65,8 @@ class Brain {
     });
   }
 
-  // Copying weights to the new model, mutates the copied model, and returns a new brain object with the mutated copied model.
-  copy({ mutate=true }) {
+  // Copying weights to the new model, mutates the copied model, and returns a new network object with the mutated copied model.
+  copy() {
     return tf.tidy(() => {
       const weights = this.model.getWeights();
       const weightCopies = [];
@@ -60,18 +74,16 @@ class Brain {
         weightCopies[i] = weights[i].clone();
       }
 
-      let brain = new Brain({ inputSize: this._inputSize, outputSize: this._outputSize });
-      brain.model.setWeights(weightCopies);
-      if (mutate) brain.mutate();
-
-      return brain;
+      const network = new CMLPNetwork(this._config);
+      network.model.setWeights(weightCopies);
+      return network as any;
     });
   }
 
-  combine(brain, factor=0.5) {
+  combine({ model, factor=0.5, inplace=false }) {
     return tf.tidy(() => {
       const weights1 = this.model.getWeights();
-      const weights2 = brain.model.getWeights();
+      const weights2 = model.model.getWeights();
       const newWeights = [];
 
       for (let i = 0; i < weights1.length; i++) {
@@ -85,22 +97,30 @@ class Brain {
 
         newWeights[i] = tf.tensor(newValues, shape);
       }
-      // create a new brain object with the combined weights
-      const newBrain = new Brain({ inputSize: this._inputSize, outputSize: this._outputSize });
-      newBrain.model.setWeights(newWeights);
-      return newBrain;
+      if (inplace) {
+        this.model.setWeights(newWeights);
+        return this;
+      }
+      // create a new network object with the combined weights
+      const network = new CMLPNetwork(this._config);
+      network.model.setWeights(newWeights);
+      return network as any;
     });
   }
 
   // Predicting the output using a neural network model, gets the output values, and returns the predicted outputs.
   predict(inputs) {
+    const B = inputs.length;
+    const N = inputs[0].length;
     return tf.tidy(() => {
-      const tensor2d = tf.tensor2d([inputs], [1, inputs.length]);
-      const prediction = this.model.predict(tensor2d);
-      const outputs = prediction.dataSync();
-
-      return outputs;
+      const tensor2d = tf.tensor2d(inputs, [B, N]);
+      const prediction = this.predictRaw(tensor2d) as tf.Tensor;
+      return prediction.dataSync();
     });
+  }
+
+  predictRaw(inputs) {
+    return this.model.predict(inputs);
   }
 
   flatWeights() {
@@ -117,17 +137,16 @@ class Brain {
 
   toTranserable() {
     return {
-      inputSize: this._inputSize,
-      outputSize: this._outputSize,
+      configs: this._config,
       weights: this.flatWeights()
     };
   }
 
-  // static method to create a brain object from a transferable object
-  static fromTransferable({ inputSize, outputSize, weights }) {
-    const brain = new Brain({ inputSize, outputSize });
+  // static method to create a network object from a transferable object
+  static fromTransferable({ configs, weights }) {
+    const network = new CMLPNetwork(configs);
     tf.tidy(() => {
-      const modelWeights = brain.model.getWeights();
+      const modelWeights = network.model.getWeights();
       let offset = 0;
       for (let i = 0; i < modelWeights.length; i++) {
         const size = modelWeights[i].size;
@@ -136,10 +155,14 @@ class Brain {
         modelWeights[i] = tf.tensor(values, shape);
         offset += size;
       }
-      brain.model.setWeights(modelWeights);
+      network.model.setWeights(modelWeights);
     });
-    return brain;
+    return network;
+  }
+
+  fit(lossFn) {
+    return this._optimizer.minimize(lossFn, true, this.model.getWeights(true) as any);
   }
 }
 
-export { Brain };
+export { CMLPNetwork };

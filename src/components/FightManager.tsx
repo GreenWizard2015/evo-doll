@@ -1,9 +1,10 @@
 import React from "react";
 import { useColosseum } from "./Colosseum";
 import { v5 as generateUUID } from "uuid";
-import { Brain } from "../helpers/NN";
+import { CActorNetwork } from "../networks/ActorNetwork";
 import { RAGDOLL_PARTS } from "./Ragdoll";
 import { IPlayerData } from "./Arena";
+import { TrainedEventCallback, useTrainer } from "./Trainer";
 
 interface IFighter extends IPlayerData {
   score: number | null; // null if the fighter is not evaluated yet
@@ -15,7 +16,8 @@ function FightManager({
   seedsN=3,
   updateStats,
 }) {
-  const { addFighter } = useColosseum(); // get the addFighter function from the context
+  const colosseum = useColosseum(); // get the addFighter function from the context
+  const trainer = useTrainer(); // get the trainer context
   const [fighters, setFighters] = React.useState<Map<string, IFighter>>(new Map()); // store the fighters
   const [left, setLeft] = React.useState<number>(0); // number of fighters left to evaluate
   const [epoch, setEpoch] = React.useState<number>(0); // current epoch
@@ -42,11 +44,24 @@ function FightManager({
   React.useEffect(() => {
     onFinished.current = onFinishedFun;
   }, [onFinishedFun]);
-    
+  
+  const onTrainedFun: TrainedEventCallback = React.useCallback((model, uuid) => {
+    console.log(`Fighter ${uuid} trained`);
+    const player: IFighter = { // create a new player
+      model, callback: onFinished, uuid, score: null, prevScore: null
+    };
+    // add the player to the fighters
+    setFighters((prevFighters) => ({...prevFighters, [uuid]: player})); 
+    setLeft((prevLeft) => prevLeft + 1); // decrease the number of fighters left to evaluate
+    colosseum.addFighter(player, uuid); // add the fighter to the colosseum
+  }, [fighters, colosseum, onFinished]);
+
+  const onTrained = React.useRef(onTrainedFun);
   // when all fighters are evaluated
   React.useEffect(() => {
     if (left > 0) return;
     setEpoch(epoch => epoch + 1); // next epoch
+    trainer.nextEpoch(); // tell the trainer to start the next epoch
     setLastHighest(highestScore); // update the last highest score
     setHighestScore(-Number.MAX_VALUE); // reset the highest score
 
@@ -54,21 +69,16 @@ function FightManager({
     if (fightersArray.length === 0) { // we just started
       console.log('Creating fighters at the start');
       // create fighters
-      const fightersLocal: Map<string, IFighter> = new Map();
       for (let i = 0; i < fightersPerEpoch; i++) {
         const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);
-        const model = new Brain({ inputSize: 240, outputSize: RAGDOLL_PARTS.length * 3});
+        const model = new CActorNetwork({
+          stateSize: 240,
+          actionSize: RAGDOLL_PARTS.length * 3
+        });
         // apply huge mutation to the model
         model.mutate({ rate: 1.0, std: 10.0 });
-        const player: IFighter = { 
-          model, callback: onFinished, uuid, score: null, prevScore: null
-        };
-        fightersLocal[uuid] = player;
-        // add the fighter to the colosseum
-        addFighter(player, player.uuid);
-        setLeft(left => left + 1);
+        onTrained.current(model, uuid); // imitate the training process
       }
-      setFighters(fightersLocal);
       return;
     }
     
@@ -117,19 +127,13 @@ function FightManager({
       const parentA = topN[getFighterIndex()].model;
       const parentB = topN[getFighterIndex()].model;
       const factor = 0.5; // average the weights
-      const model = parentA.combine(parentB, factor);
+      const model = parentA.combine({model: parentB, factor});
       model.mutate({ rate: 0.5, std: 0.001 });
       
-      const player: IFighter = {
-        model, callback: onFinished, uuid, score: null, prevScore: null
-      };
-      newFighters[uuid] = player;
-      addFighter(player, player.uuid);
-      setLeft(left => left + 1);
+      trainer.train(model, onTrained, uuid);
     }
-    setFighters(newFighters);
   }, [
-    left, fighters, fightersPerEpoch, addFighter, onFinished, seedsN,
+    left, fighters, fightersPerEpoch, onFinished, seedsN, colosseum, onTrained, trainer,
     highestScore, lastHighest
   ]);
 

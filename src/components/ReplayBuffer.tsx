@@ -7,21 +7,24 @@ interface IRBItem {
 
 interface IRBItemProcessed {
   state: any;
+  nextState: any;
   action: any;
+  nextAction: any;
   reward: number;
+  isDone: boolean;
 }
 
 class CReplayBuffer {
   private buffer: IRBItemProcessed[];
   private size: number;
   private index: number;
-  private discount: number;
   private runs: Map<string, IRBItem[]>;
+  public readonly discount: number;
 
-  constructor({ size, discount = 0.99 }) {
+  constructor({ size, discount = 0.9, buffer = []}) {
     this.size = size;
     this.discount = discount;
-    this.buffer = [];
+    this.buffer = [...buffer];
     this.index = 0;
     this.runs = new Map();
   }
@@ -37,6 +40,20 @@ class CReplayBuffer {
   }
 
   public add({state, action, score, time, runId, isDone=false}): void {
+    if((null == state) || (null == action)) {
+      if(!isDone) {
+        throw new Error('state and action are required.');
+      }
+      
+      console.log('bad episode, skipping...');
+      console.log(this.runs[runId]);
+
+      if(this.runs.has(runId)) {
+        this.runs.delete(runId);
+      }
+      return;
+    }
+    
     if (!this.runs.has(runId)) {
       this.runs.set(runId, []);
     }
@@ -64,24 +81,47 @@ class CReplayBuffer {
       // convert to IRBItemProcessed and add to buffer
       for (let i = 0; i < run.length; i++) {
         const item = run[i];
+        const nextItem = ((i + 1) < run.length) ? run[i + 1] : run[i];
         const processedItem: IRBItemProcessed = {
           state: item.state,
+          nextState: nextItem.state,
           action: item.action,
-          reward: discountedRewards[i]
+          nextAction: nextItem.action,
+          reward: discountedRewards[i],
+          isDone: i === run.length - 1,
         };
         this._add(processedItem);
       }
     }
   }
 
-  // return all samples in the buffer and clear the buffer
-  public samples(): IRBItemProcessed[] {
-    const samples: IRBItemProcessed[] = this.buffer;
-    this.buffer = []; // clear buffer
-    return samples;
+  public raw() {
+    return {
+      size: this.size,
+      discount: this.discount,
+      buffer: this.buffer
+    };
+  }
+  
+  public sample(size: number) {
+    const samples = [];
+    for (let i = 0; i < size; i++) {
+      const index = Math.floor(Math.random() * this.buffer.length);
+      samples.push(this.buffer[index]);
+    }
+    return {
+      state: samples.map((item) => item.state),
+      nextState: samples.map((item) => item.nextState),
+      action: samples.map((item) => item.action),
+      nextAction: samples.map((item) => item.nextAction),
+      reward: samples.map((item) => [item.reward]),
+      discount: samples.map((item) => [item.isDone ? 0 : this.discount])
+    }
   }
 }
 
 export const ReplayBuffer = new CReplayBuffer({
   size: 10000
 });
+
+export { CReplayBuffer };

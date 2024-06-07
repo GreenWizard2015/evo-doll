@@ -115,7 +115,7 @@ function Arena({
     updateScores(scores, uuid);
   }, [scores, updateScores, uuid]); // update the scores when the scores change
 
-  const onInference = useCallback(({ data, uuid, state, extras }) => {
+  const onInferenceFun = useCallback(({ data, uuid, state, extras }) => {
     // UUID is the UUID of the head
     const playerData = UUID2player.current[uuid];
     if (!playerData) {
@@ -131,6 +131,10 @@ function Arena({
       runId: uuid, isDone: false
     });
   }, []);
+  const onInference = useRef(onInferenceFun);
+  React.useEffect(() => {
+    onInference.current = onInferenceFun;
+  }, [onInferenceFun]);
 
   const raycaster = useRef(new THREE.Raycaster());
   const isFinished = useRef(false);
@@ -144,9 +148,11 @@ function Arena({
       
       const state = encodeObservation({
         raycaster: raycaster.current,
-        player: playerData.ref.current,
+        player: ref.current,
         scene
       });
+      // store the state
+      playerData.state = state;
 
       const head = ref.current['head'].ref.current;
       runInference({

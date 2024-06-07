@@ -10,7 +10,7 @@ const CALLBACKS_BY_UUID = {};
 function runInference({ model, state, callback, uuid, extras}) {
   if(!worker) {
     throw new Error('Worker not initialized');
-  }
+  }  
   CALLBACKS_BY_UUID[uuid] = callback; // store the callback
   worker.postMessage({
     type: 'runInference',
@@ -21,7 +21,7 @@ function runInference({ model, state, callback, uuid, extras}) {
 
 function InferenceWorker({ }) {
   useEffect(() => {
-    const newWorker = new Worker(new URL('./InferenceWorker.worker.js', import.meta.url));
+    const newWorker = new Worker(new URL('../workers/inference.worker.js', import.meta.url));
     worker = newWorker;
 
     newWorker.onmessage = function(e) {
@@ -29,7 +29,10 @@ function InferenceWorker({ }) {
       if('done' === status) {
         const { data, uuid, state, extras } = e.data;
         const callback = CALLBACKS_BY_UUID[uuid];
-        callback({ data, uuid, state, extras });
+        if(!callback || !callback.current) {
+          throw new Error('Callback not found for ' + uuid);
+        }
+        callback.current({ data, uuid, state, extras });
         return;
       }
       throw new Error('Unknown status: ' + status);
