@@ -1,8 +1,29 @@
 const { CActorNetwork } = require("../networks/ActorNetwork.tsx");
 
+const models = {}; // modelId -> { network, time }
 let queue = {}; // uuid -> { model, state, callback }
 let keys = []; // uuids
 let running = false; // dumb way to check if worker is busy
+
+function disposeOldModels(period) {
+  const now = Date.now();
+  const outdated = [];
+  for (const modelId in models) {
+    const { time } = models[modelId];
+    if (now - time > period) {
+      outdated.push(modelId);
+    }
+  }
+  for (const modelId of outdated) {
+    const { network } = models[modelId];
+    network.dispose();
+    delete models[modelId];
+  }
+
+  if(0 < outdated.length) {
+    self.postMessage({ status: "disposed", models: outdated });
+  }
+}
 
 async function processQueue() {
   running = keys.length > 0;
@@ -13,25 +34,42 @@ async function processQueue() {
   const task = queue[taskId];
   delete queue[taskId];
 
-  const { model, state, extras } = task;
-  const network = CActorNetwork.fromTransferable(model);
-  const results = network.predict([state]);
-  network.dispose();
-  self.postMessage({
-    status: "done", 
-    data: results, 
-    uuid: taskId,
-    state,
-    extras
-  });
-  
-  processQueue(); // Process next task
+  const { state, extras } = task;
+  const model = models[taskId];
+  if (!model) {
+    console.error("Model not found", taskId);
+  } else {
+    const results = model.network.predict([state]);
+    model.time = Date.now(); // Update last used time
+    self.postMessage({
+      status: "done", 
+      data: results, 
+      uuid: taskId,
+      state,
+      extras
+    });
+  }
+
+  disposeOldModels(1000 * 5); // Dispose models older than 5 seconds
+  setTimeout(processQueue, 0); // Process next task
 }
 
 self.onmessage = async function({ data }) {
+  if (data.type === "stop") {
+    disposeOldModels(0);
+    self.postMessage({ status: "stopped" });
+    self.close();
+    return;
+  }
+  if (data.type === "model") {
+    const { model, uuid } = data;
+    const network = CActorNetwork.fromTransferable(model);
+    models[uuid] = {network, time: Date.now()};
+    return;
+  }
   if (data.type === "runInference") {
-    const { model, state, uuid, extras } = data;
-    queue[uuid] = { model, state, extras };
+    const { state, uuid, extras } = data;
+    queue[uuid] = { state, extras };
     if (!keys.includes(uuid)) keys.push(uuid);
     if (!running) {
       processQueue();

@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [totalArenas, setTotalArenas] = React.useState<number>(3);
   const [fightersPerEpoch, setFightersPerEpoch] = React.useState<number>(100);
   const [seedsN, setSeedsN] = React.useState<number>(20);
+  const [inferSpeed, setInferSpeed] = React.useState<number>(0);
   const [isPaused, setIsPaused] = React.useState<boolean>(false);
   const togglePause = React.useCallback((e) => {
     setIsPaused((oldValue) => !oldValue);
@@ -80,9 +81,12 @@ const App: React.FC = () => {
             <div>Arena {i + 1} | Player A: {scores.playerA} | Player B: {scores.playerB}</div>
           </div>
         ))}
+        <div>
+          <label>Inference speed: {inferSpeed.toFixed(2)} per second</label>
+        </div>
         {fightStats}
       </div>
-      <InferenceWorker />
+      <InferenceWorker updateSpeed={setInferSpeed} />
       {/* right sidebar */}
       <div style={sidebarStyle}>
         <div>
