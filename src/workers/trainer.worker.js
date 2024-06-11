@@ -25,12 +25,11 @@ async function loop() {
     console.log("Fighter Loss", fighterLoss);
     fighterEpoch++;
     if(fighterEpoch === MAX_EPOCHS) {
-      const data = fighter.toTranserable();
       // Send the trained fighter to the main thread
       self.postMessage({
         type: "trained",
         uuid: fighterUUID,
-        model: data
+        model: fighter.toTranserable()
       });
       // clean up the fighter
       fighter.dispose();
@@ -65,6 +64,11 @@ self.onmessage = async function({ data }) {
     console.log("Stopping the worker");
     critic.dispose();
     critic = null;
+    if(fighter) { // clean up the fighter, if it's available
+      fighter.dispose();
+      fighter = null;
+    }
+    self.postMessage({ type: "stopped" });
     return;
   }
 

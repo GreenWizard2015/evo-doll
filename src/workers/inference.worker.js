@@ -58,7 +58,6 @@ self.onmessage = async function({ data }) {
   if (data.type === "stop") {
     disposeOldModels(-Number.MAX_VALUE); // Dispose all models
     self.postMessage({ status: "stopped" });
-    self.close();
     return;
   }
   if (data.type === "model") { // store the model "locally"

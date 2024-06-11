@@ -58,8 +58,14 @@ function TrainerProvider({ children }) {
           callback.current(CActorNetwork.fromTransferable(model), uuid);
         }
       }
+      if (type === 'stopped') {
+        console.log('Worker is stopped');
+        worker.terminate();
+      }
     };
-    return () => worker.terminate();
+    return () => {
+      worker.postMessage({ type: 'stop' });
+    };
   }, []);
 
   const api = React.useMemo(
