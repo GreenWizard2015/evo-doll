@@ -62,8 +62,13 @@ function TrainerProvider({ children }) {
     return () => worker.terminate();
   }, []);
 
+  const api = React.useMemo(
+    () => ({ nextEpoch, train }),
+    [nextEpoch, train]
+  );
+
   return (
-    <TrainerContext.Provider value={{ nextEpoch, train }}>
+    <TrainerContext.Provider value={api}>
       {children}
     </TrainerContext.Provider>
   );

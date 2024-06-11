@@ -61,13 +61,13 @@ self.onmessage = async function({ data }) {
     self.close();
     return;
   }
-  if (data.type === "model") {
+  if (data.type === "model") { // store the model "locally"
     const { model, uuid } = data;
     const network = CActorNetwork.fromTransferable(model);
     models[uuid] = {network, time: Date.now()};
     return;
   }
-  if (data.type === "runInference") {
+  if (data.type === "runInference") { // run inference for the given state and model
     const { state, uuid, extras } = data;
     queue[uuid] = { state, extras };
     if (!keys.includes(uuid)) keys.push(uuid);
