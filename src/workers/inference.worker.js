@@ -10,7 +10,8 @@ function disposeOldModels(period) {
   const outdated = [];
   for (const modelId in models) {
     const { time } = models[modelId];
-    if (now - time > period) {
+    const delta = now - time;
+    if (period < delta) {
       outdated.push(modelId);
     }
   }
@@ -50,7 +51,7 @@ async function processQueue() {
     });
   }
 
-  disposeOldModels(1000 * 5); // Dispose models older than 5 seconds
+  disposeOldModels(1000 * 25); // Dispose models older than 5 seconds
   setTimeout(processQueue, 0); // Process next task
 }
 
