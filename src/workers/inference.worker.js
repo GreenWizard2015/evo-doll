@@ -56,7 +56,7 @@ async function processQueue() {
 
 self.onmessage = async function({ data }) {
   if (data.type === "stop") {
-    disposeOldModels(0);
+    disposeOldModels(-Number.MAX_VALUE); // Dispose all models
     self.postMessage({ status: "stopped" });
     self.close();
     return;
