@@ -14,7 +14,7 @@ import Trainer from './Trainer';
 const App: React.FC = () => {
   const [scores, setScores] = React.useState<IScores[]>([]);
   const [fightStats, setFightStats] = React.useState<Array<React.ReactNode>>([]);
-  const [totalArenas, setTotalArenas] = React.useState<number>(3);
+  const [totalArenas, setTotalArenas] = React.useState<number>(10);
   const [fightersPerEpoch, setFightersPerEpoch] = React.useState<number>(100);
   const [seedsN, setSeedsN] = React.useState<number>(20);
   const [inferSpeed, setInferSpeed] = React.useState<number>(0);
@@ -63,7 +63,7 @@ const App: React.FC = () => {
             totalArenas={totalArenas} updateScores={setScores} isPaused={isPaused}
             timeLimit={timeLimit * 1000}
           >
-            <Trainer>
+            <Trainer trainable={false}>
               <FightManager 
                 updateStats={setFightStats} 
                 fightersPerEpoch={fightersPerEpoch} 

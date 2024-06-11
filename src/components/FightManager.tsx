@@ -36,7 +36,8 @@ function FightManager({
 
   const onFinishedFun = React.useCallback(({score, uuid, model}) => {
     fighters[uuid].score = score; // update the score
-    setLeft((prevLeft) => prevLeft - 1); // decrease the number of fighters left to evaluate
+    // decrease the number of fighters left to evaluate
+    setLeft((prevLeft) => prevLeft - 1);
     setHighestScore((prevHighest) => Math.max(prevHighest, score)); // update the highest score
   }, [fighters]);
   const onFinished = React.useRef(onFinishedFun);
@@ -45,14 +46,18 @@ function FightManager({
     onFinished.current = onFinishedFun;
   }, [onFinishedFun]);
   
-  const onTrainedFun: TrainedEventCallback = React.useCallback((model, uuid) => {
+  const onTrainedFun: TrainedEventCallback = React.useCallback((model, uuid, data=null) => {
     console.log(`Fighter ${uuid} trained`);
+    if(!data) {
+      data = {score: null, prevScore: null};
+    }
     const player: IFighter = { // create a new player
-      model, callback: onFinished, uuid, score: null, prevScore: null
+      model, callback: onFinished, uuid, ...data
     };
     // add the player to the fighters
     setFighters((prevFighters) => ({...prevFighters, [uuid]: player})); 
-    setLeft((prevLeft) => prevLeft + 1); // decrease the number of fighters left to evaluate
+    // increase the number of fighters left to evaluate
+    // setLeft((prevLeft) => prevLeft + 1);
     colosseum.addFighter(player, uuid); // add the fighter to the colosseum
   }, [fighters, colosseum, onFinished]);
 
@@ -66,6 +71,8 @@ function FightManager({
     setHighestScore(-Number.MAX_VALUE); // reset the highest score
 
     const fightersArray: IFighter[] = Object.values(fighters);
+    setFighters(new Map()); // clear the fighters
+    setLeft(fightersPerEpoch); // set the number of fighters left to evaluate
     if (fightersArray.length === 0) { // we just started
       console.log('Creating fighters at the start');
       // create fighters
@@ -113,13 +120,10 @@ function FightManager({
       return probabilities.length - 1;
     }
 
-    // create new fighters from the best ones
-    const newFighters: Map<string, IFighter> = new Map();
     // first, add the top fighters to the new fighters
     for (const fighter of topN) {
-      fighter.prevScore = score(fighter);
-      fighter.score = null;
-      newFighters[fighter.uuid] = fighter;
+      const { uuid, model } = fighter;
+      onTrained.current(model, uuid, {score: null, prevScore: score(fighter)});
     }
     // then, create new fighters by combining the top fighters with mutations
     for (let i = 0; i < fightersPerEpoch; i++) {
@@ -145,7 +149,7 @@ function FightManager({
         fighter.model.dispose();
       }
     };
-  }, [fighters]);
+  }, []);
   return null;
 }
 

@@ -2,7 +2,7 @@ import React, { MutableRefObject } from "react";
 import { ReplayBuffer } from "./ReplayBuffer";
 import { CActorNetwork } from "../networks/ActorNetwork";
 
-type TrainedEventCallback = (model: CActorNetwork, uuid: string) => void;
+type TrainedEventCallback = (model: CActorNetwork, uuid: string, data?: any) => void;
 interface ITrainerContext {
   nextEpoch: () => void;
   train: (model: CActorNetwork, callback: MutableRefObject<TrainedEventCallback>, uuid: string) => void;
@@ -18,18 +18,19 @@ export const useTrainer = () => {
   return context;
 };
 
-function TrainerProvider({ children }) {
+function TrainerProvider({ children, trainable}) {
   const [worker, setWorker] = React.useState<Worker | null>(null);
   const [callbacksByUUID, setCallbacksByUUID] = React.useState<
     Record<string, MutableRefObject<TrainedEventCallback>
   >>({});
   const nextEpoch = React.useCallback(() => {
     if (!worker) return; // FIXME: handle this case on start
+    if (!trainable) return;
     worker.postMessage({
       type: 'dataset',
       dataset: ReplayBuffer.raw() // clone the replay buffer
     });
-  }, [worker]);
+  }, [worker, trainable]);
 
   const train = React.useCallback(
     (model: CActorNetwork, callback: MutableRefObject<TrainedEventCallback>, uuid: string) => {
@@ -37,14 +38,18 @@ function TrainerProvider({ children }) {
       if (!worker) {
         throw new Error('Worker not ready');
       }
+      if (!trainable) {
+        callback.current(model, uuid); // immediately return the model
+        return;
+      }
       setCallbacksByUUID((prev) => ({ ...prev, [uuid]: callback }));
       worker.postMessage({
         type: 'train',
         model: model.toTranserable(),
         uuid
-      }); 
+      });
     }
-  , [worker]);
+  , [worker, trainable]);
 
   React.useEffect(() => {
     const worker = new Worker(new URL('../workers/trainer.worker.js', import.meta.url));
@@ -55,7 +60,8 @@ function TrainerProvider({ children }) {
         console.log('Trained', uuid);
         const callback = callbacksByUUID[uuid];
         if (callback && callback.current) {
-          callback.current(CActorNetwork.fromTransferable(model), uuid);
+          const network = CActorNetwork.fromTransferable(model);
+          callback.current(network, uuid);
         }
       }
       if (type === 'stopped') {
@@ -80,9 +86,9 @@ function TrainerProvider({ children }) {
   );
 };
 
-function Trainer({ children }) {
+function Trainer({ children, trainable }) {
   return (
-    <TrainerProvider>
+    <TrainerProvider trainable={trainable}>
       {children}
     </TrainerProvider>
   );
