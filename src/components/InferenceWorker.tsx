@@ -63,7 +63,7 @@ function InferenceWorker({ updateSpeed }) {
         for(const uuid in models) { // remove disposed models
           delete MODELS_BY_UUID[uuid];
         }
-        console.log('Models disposed', models);
+        // console.log('Models disposed', models);
         return;
       }
       if('stopped' === status) {

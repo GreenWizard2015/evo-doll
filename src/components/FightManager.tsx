@@ -70,7 +70,7 @@ function FightManager({
     setLastHighest(highestScore); // update the last highest score
     setHighestScore(-Number.MAX_VALUE); // reset the highest score
 
-    const fightersArray: IFighter[] = Array.from(fighters.current.values()); // get the fighters
+    const fightersArray: IFighter[] = Object.values(fighters.current);
     fighters.current = new Map(); // clear the fighters
     setLeft(fightersPerEpoch); // set the number of fighters left to evaluate
     if (fightersArray.length === 0) { // we just started

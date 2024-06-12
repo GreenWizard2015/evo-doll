@@ -10,6 +10,7 @@ import { IScores } from './Arena';
 import FightManager from './FightManager';
 import FormRange from 'react-bootstrap/FormRange';
 import Trainer from './Trainer';
+import { Form } from 'react-bootstrap';
 
 const App: React.FC = () => {
   const [scores, setScores] = React.useState<IScores[]>([]);
@@ -18,6 +19,7 @@ const App: React.FC = () => {
   const [fightersPerEpoch, setFightersPerEpoch] = React.useState<number>(100);
   const [seedsN, setSeedsN] = React.useState<number>(20);
   const [inferSpeed, setInferSpeed] = React.useState<number>(0);
+  const [isTrainable, setIsTrainable] = React.useState<boolean>(false);
   const [isPaused, setIsPaused] = React.useState<boolean>(false);
   const togglePause = React.useCallback((e) => {
     setIsPaused((oldValue) => !oldValue);
@@ -57,13 +59,12 @@ const App: React.FC = () => {
         <Physics isPaused={isPaused} allowSleep={false}>
           <Scene />
 
-          
           <Colosseum 
             key={runId}
             totalArenas={totalArenas} updateScores={setScores} isPaused={isPaused}
             timeLimit={timeLimit * 1000}
           >
-            <Trainer trainable={false}>
+            <Trainer trainable={isTrainable}>
               <FightManager 
                 updateStats={setFightStats} 
                 fightersPerEpoch={fightersPerEpoch} 
@@ -115,6 +116,14 @@ const App: React.FC = () => {
           <FormRange 
             min={1} max={100} value={timeLimit} 
             onChange={(e) => setTimeLimit(parseInt(e.target.value))}
+          />
+        </div>
+        <div>
+          <Form.Check
+            type='checkbox'
+            label='Trainable'
+            checked={isTrainable}
+            onChange={(e) => setIsTrainable(e.target.checked)}
           />
         </div>
         {/* button to start a new run */}
