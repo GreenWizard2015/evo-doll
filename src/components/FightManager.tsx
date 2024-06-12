@@ -18,7 +18,7 @@ function FightManager({
 }) {
   const colosseum = useColosseum(); // get the addFighter function from the context
   const trainer = useTrainer(); // get the trainer context
-  const [fighters, setFighters] = React.useState<Map<string, IFighter>>(new Map()); // store the fighters
+  const fighters = React.useRef<Map<string, IFighter>>(new Map()); // store the fighters
   const [left, setLeft] = React.useState<number>(0); // number of fighters left to evaluate
   const [epoch, setEpoch] = React.useState<number>(0); // current epoch
   const [highestScore, setHighestScore] = React.useState<number>(-Number.MAX_VALUE); // highest score
@@ -35,7 +35,7 @@ function FightManager({
   }, [left, epoch, updateStats, highestScore, lastHighest]);
 
   const onFinishedFun = React.useCallback(({score, uuid, model}) => {
-    fighters[uuid].score = score; // update the score
+    fighters.current[uuid].score = score; // update the score
     // decrease the number of fighters left to evaluate
     setLeft((prevLeft) => prevLeft - 1);
     setHighestScore((prevHighest) => Math.max(prevHighest, score)); // update the highest score
@@ -54,8 +54,8 @@ function FightManager({
     const player: IFighter = { // create a new player
       model, callback: onFinished, uuid, ...data
     };
-    // add the player to the fighters
-    setFighters((prevFighters) => ({...prevFighters, [uuid]: player})); 
+    // add the player to the fighters    
+    fighters.current[uuid] = player;
     // increase the number of fighters left to evaluate
     // setLeft((prevLeft) => prevLeft + 1);
     colosseum.addFighter(player, uuid); // add the fighter to the colosseum
@@ -70,8 +70,8 @@ function FightManager({
     setLastHighest(highestScore); // update the last highest score
     setHighestScore(-Number.MAX_VALUE); // reset the highest score
 
-    const fightersArray: IFighter[] = Object.values(fighters);
-    setFighters(new Map()); // clear the fighters
+    const fightersArray: IFighter[] = Array.from(fighters.current.values()); // get the fighters
+    fighters.current = new Map(); // clear the fighters
     setLeft(fightersPerEpoch); // set the number of fighters left to evaluate
     if (fightersArray.length === 0) { // we just started
       console.log('Creating fighters at the start');
@@ -144,7 +144,7 @@ function FightManager({
   React.useEffect(() => {
     return () => {
       // dispose the models when the component is unmounted
-      const all = Array.from(fighters.values());
+      const all = Array.from(fighters.current.values());
       for (const fighter of all) {
         fighter.model.dispose();
       }
