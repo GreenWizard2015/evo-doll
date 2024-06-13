@@ -163,6 +163,11 @@ class CMLPNetwork {
   fit(lossFn) {
     return this._optimizer.minimize(lossFn, true, this.model.getWeights(true) as any);
   }
+  
+  compile(params: any) {
+    this.model.compile(params);
+    this._optimizer = this.model.optimizer;
+  }  
 }
 
 export { CMLPNetwork };

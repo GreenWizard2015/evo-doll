@@ -4,7 +4,6 @@ import { CMLPNetwork } from '../networks/MLPNetwork';
 class CriticNetwork {
   private modelA: CMLPNetwork;
   private modelB: CMLPNetwork;
-  private _optimizer: tf.Optimizer;
   private _stateSize: number;
   private _actionSize: number;
   private _tau: number;
@@ -74,6 +73,11 @@ class CriticNetwork {
     // update target model
     this.modelB.combine({ model: this.modelA, factor: this._tau, inplace: true});
     return loss.dataSync();
+  }
+  
+  dispose() {
+    this.modelA.dispose();
+    this.modelB.dispose();
   }
 }
 
