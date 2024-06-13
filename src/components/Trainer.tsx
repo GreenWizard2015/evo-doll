@@ -19,60 +19,65 @@ export const useTrainer = () => {
 };
 
 function TrainerProvider({ children, trainable}) {
-  const [worker, setWorker] = React.useState<Worker | null>(null);
-  const [callbacksByUUID, setCallbacksByUUID] = React.useState<
-    Record<string, MutableRefObject<TrainedEventCallback>
-  >>({});
+  const worker = React.useRef<Worker | null>(null);
+  const callbacksByUUID = React.useRef<
+    Map<string, MutableRefObject<TrainedEventCallback>
+  >>(new Map());
   const nextEpoch = React.useCallback(() => {
-    if (!worker) return; // FIXME: handle this case on start
+    if (!worker.current) return; // FIXME: handle this case on start
     if (!trainable) return;
-    worker.postMessage({
+    worker.current.postMessage({
       type: 'dataset',
       dataset: ReplayBuffer.raw() // clone the replay buffer
     });
-  }, [worker, trainable]);
+  }, [trainable, worker]);
 
   const train = React.useCallback(
     (model: CActorNetwork, callback: MutableRefObject<TrainedEventCallback>, uuid: string) => {
-      console.log('Training', uuid);
-      if (!worker) {
+      if (!worker.current) {
         throw new Error('Worker not ready');
       }
       if (!trainable) {
         callback.current(model, uuid); // immediately return the model
         return;
       }
-      setCallbacksByUUID((prev) => ({ ...prev, [uuid]: callback }));
-      worker.postMessage({
+      callbacksByUUID.current[uuid] = callback;      
+      worker.current.postMessage({
         type: 'train',
         model: model.toTranserable(),
         uuid
       });
     }
-  , [worker, trainable]);
+  , [trainable, callbacksByUUID, worker]);
 
   React.useEffect(() => {
-    const worker = new Worker(new URL('../workers/trainer.worker.js', import.meta.url));
-    setWorker(worker);
-    worker.onmessage = (event) => {
+    const newWorker = new Worker(new URL('../workers/trainer.worker.js', import.meta.url));
+    worker.current = newWorker;
+    newWorker.onmessage = (event) => {
       const { type, model, uuid } = event.data;
       if (type === 'trained') {
         console.log('Trained', uuid);
-        const callback = callbacksByUUID[uuid];
+        const callback = callbacksByUUID.current[uuid];
         if (callback && callback.current) {
           const network = CActorNetwork.fromTransferable(model);
           callback.current(network, uuid);
+          delete callbacksByUUID[uuid];
+        } else {
+          throw new Error('Callback not found for ' + uuid);
         }
       }
       if (type === 'stopped') {
         console.log('Worker is stopped');
-        worker.terminate();
+        newWorker.terminate();
       }
     };
-    return () => {
-      worker.postMessage({ type: 'stop' });
+    newWorker.onerror = (error) => {
+      console.error('Worker error', error);
     };
-  }, []);
+    return () => {
+      newWorker.postMessage({ type: 'stop' });
+    };
+  }, [callbacksByUUID]);
 
   const api = React.useMemo(
     () => ({ nextEpoch, train }),

@@ -33,12 +33,15 @@ class CActorNetwork {
       }
     }
 
-    this.model.fit(() => {
-      const action = this.predict(state);
-      const Q = critic.predict(nextState, action);
+    return this.model.fit(() => {
+      const stateT = tf.tensor2d(state, [B, this._stateSize]);
+      // const actionT = tf.tensor2d(action, [B, this._actionSize]);
+      const nextAction = this.model.predictRaw(stateT);
+      const nextStateT = tf.tensor2d(nextState, [B, this._stateSize]);
+      const Q = critic.predict(nextStateT, nextAction);
 
       return tf.mean(tf.mul(Q, -1)); // maximize Q
-    });
+    }).dataSync();
   }
   
   static fromTransferable({ stateSize, actionSize, model }): CActorNetwork {
@@ -84,6 +87,10 @@ class CActorNetwork {
 
   dispose() {
     this.model.dispose();
+  }
+
+  compile(params) {
+    this.model.compile(params);
   }
 }
 

@@ -1,6 +1,6 @@
 const { CReplayBuffer } = require("../components/ReplayBuffer.tsx");
 const { CriticNetwork } = require("../networks/CriticNetwork.tsx");
-const { CMLPNetwork } = require("../networks/MLPNetwork.tsx");
+const { CActorNetwork } = require("../networks/ActorNetwork.tsx");
 
 let dataset = null;
 let critic = new CriticNetwork({
@@ -21,7 +21,7 @@ async function loop() {
 
   const batch = dataset.sample(BATCH_SIZE);
   if(fighter) { // Train the fighter, if it's available
-    const fighterLoss = await fighter.fit(batch);
+    const fighterLoss = await fighter.fit(batch, critic);
     console.log("Fighter Loss", fighterLoss);
     fighterEpoch++;
     if(fighterEpoch === MAX_EPOCHS) {
@@ -39,11 +39,11 @@ async function loop() {
   } else {
     if(fightersConfigs.length == 0) { // Train the critic, if there are no fighters
       const loss = await critic.fit(batch);
-      console.log("Loss", loss);
+      // console.log("Loss", loss);
     } else { // take the next fighter from the queue
       const { model, uuid } = fightersConfigs.pop();
       fighterUUID = uuid;
-      fighter = CMLPNetwork.fromTransferable(model);
+      fighter = CActorNetwork.fromTransferable(model);
       fighter.compile({
         optimizer: "adam",
         loss: [null]
@@ -51,15 +51,10 @@ async function loop() {
       fighterEpoch = 0; // reset the epoch
     }
   }
-  loop();
+  setTimeout(loop, 0); // Process next batch
 }
 
 self.onmessage = async function({ data }) {
-  if (data.type === "dataset") {
-    dataset = new CReplayBuffer(data.dataset);
-    console.log("Dataset received", dataset);
-  }
-
   if (data.type === "stop") {
     console.log("Stopping the worker");
     critic.dispose();
@@ -70,6 +65,11 @@ self.onmessage = async function({ data }) {
     }
     self.postMessage({ type: "stopped" });
     return;
+  }
+
+  if (data.type === "dataset") {
+    dataset = new CReplayBuffer(data.dataset);
+    console.log("Dataset received", dataset);
   }
 
   if (data.type === "train") {

@@ -126,7 +126,7 @@ function FightManager({
       onTrained.current(model, uuid, {score: null, prevScore: score(fighter)});
     }
     // then, create new fighters by combining the top fighters with mutations
-    for (let i = 0; i < fightersPerEpoch; i++) {
+    for (let i = topN.length; i < fightersPerEpoch; i++) {
       const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);
       const parentA = topN[getFighterIndex()].model;
       const parentB = topN[getFighterIndex()].model;
