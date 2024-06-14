@@ -118,6 +118,7 @@ const App: React.FC = () => {
             onChange={(e) => setTimeLimit(parseInt(e.target.value))}
           />
         </div>
+        {/* 
         <div>
           <Form.Check
             type='checkbox'
@@ -126,6 +127,7 @@ const App: React.FC = () => {
             onChange={(e) => setIsTrainable(e.target.checked)}
           />
         </div>
+         */}
         {/* button to start a new run */}
         <button style={{background: 'blue', color: 'white', padding: '10px', borderRadius: '5px', width: '100%', marginTop: '10px'}} onClick={newRun}>
           New run
