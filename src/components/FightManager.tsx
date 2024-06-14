@@ -15,6 +15,7 @@ function FightManager({
   fightersPerEpoch = 10,
   seedsN=3,
   updateStats,
+  addStatistic,
 }) {
   const colosseum = useColosseum(); // get the addFighter function from the context
   const trainer = useTrainer(); // get the trainer context
@@ -88,7 +89,11 @@ function FightManager({
       }
       return;
     }
-    
+    // add the statistics only if we have scored fighters
+    addStatistic({
+      epoch,
+      scores: fightersArray.map(fighter => fighter.score),
+    });
     const N = seedsN; // number of seeds
     // sort the fighters by score, in ascending order, higher score is last
     function score(fighter: IFighter) {
@@ -138,7 +143,7 @@ function FightManager({
     }
   }, [
     left, fighters, fightersPerEpoch, onFinished, seedsN, colosseum, onTrained, trainer,
-    highestScore, lastHighest
+    highestScore, lastHighest, addStatistic
   ]);
 
   React.useEffect(() => {

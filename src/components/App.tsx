@@ -11,6 +11,7 @@ import FightManager from './FightManager';
 import FormRange from 'react-bootstrap/FormRange';
 import Trainer from './Trainer';
 import { Form } from 'react-bootstrap';
+import ConfidenceIntervalsGraph from './ConfidenceIntervalsGraph';
 
 const App: React.FC = () => {
   const [scores, setScores] = React.useState<IScores[]>([]);
@@ -50,6 +51,16 @@ const App: React.FC = () => {
     setRunId(Date.now().toString());
   }, []);
 
+  const statistics = React.useRef<number[][]>([]);
+  React.useEffect(() => {
+    statistics.current = [];
+  }, [runId]); // reset the statistics when a new run is started
+  const addStatistic = React.useCallback((newStatistics: { epoch: number, scores: number[] }) => {
+    const scoresNew = [...newStatistics.scores]; // copy the scores
+    scoresNew.sort((a, b) => a - b); // sort the scores by ascending order
+    statistics.current.push(newStatistics.scores);
+  }, []);
+
   return (
     <>
       <Canvas id='canvas' style={{ position: 'absolute' }}>
@@ -67,6 +78,7 @@ const App: React.FC = () => {
             <Trainer trainable={isTrainable}>
               <FightManager 
                 updateStats={setFightStats} 
+                addStatistic={addStatistic}
                 fightersPerEpoch={fightersPerEpoch} 
                 seedsN={seedsN} 
               />
@@ -137,6 +149,12 @@ const App: React.FC = () => {
           {isPaused ? 'Resume' : 'Pause'}
         </button>
       </div>
+      <ConfidenceIntervalsGraph 
+        data={statistics.current} 
+        height={200} width={200}
+        levels={[0.9]}
+        style={{ position: 'absolute', bottom: 0, left: 0 }}
+      />
     </>
   );
 }
