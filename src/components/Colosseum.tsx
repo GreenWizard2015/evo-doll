@@ -26,8 +26,12 @@ export const useColosseum = () => {
 };
 
 function ColosseumProvider({ children, addFighter }) {
+  const api = React.useMemo(
+    () => ({ addFighter }),
+    [addFighter]
+  );
   return (
-    <ColosseumContext.Provider value={{ addFighter }}>
+    <ColosseumContext.Provider value={api}>
       {children}
     </ColosseumContext.Provider>
   );

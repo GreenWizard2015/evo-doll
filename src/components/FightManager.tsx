@@ -1,9 +1,10 @@
 import React from "react";
 import { useColosseum } from "./Colosseum";
 import { v5 as generateUUID } from "uuid";
-import { Brain } from "../helpers/NN";
+import { CActorNetwork } from "../networks/ActorNetwork";
 import { RAGDOLL_PARTS } from "./Ragdoll";
 import { IPlayerData } from "./Arena";
+import { TrainedEventCallback, useTrainer } from "./Trainer";
 
 interface IFighter extends IPlayerData {
   score: number | null; // null if the fighter is not evaluated yet
@@ -14,9 +15,11 @@ function FightManager({
   fightersPerEpoch = 10,
   seedsN=3,
   updateStats,
+  addStatistic,
 }) {
-  const { addFighter } = useColosseum(); // get the addFighter function from the context
-  const [fighters, setFighters] = React.useState<Map<string, IFighter>>(new Map()); // store the fighters
+  const colosseum = useColosseum(); // get the addFighter function from the context
+  const trainer = useTrainer(); // get the trainer context
+  const fighters = React.useRef<Map<string, IFighter>>(new Map()); // store the fighters
   const [left, setLeft] = React.useState<number>(0); // number of fighters left to evaluate
   const [epoch, setEpoch] = React.useState<number>(0); // current epoch
   const [highestScore, setHighestScore] = React.useState<number>(-Number.MAX_VALUE); // highest score
@@ -33,8 +36,9 @@ function FightManager({
   }, [left, epoch, updateStats, highestScore, lastHighest]);
 
   const onFinishedFun = React.useCallback(({score, uuid, model}) => {
-    fighters[uuid].score = score; // update the score
-    setLeft((prevLeft) => prevLeft - 1); // decrease the number of fighters left to evaluate
+    fighters.current[uuid].score = score; // update the score
+    // decrease the number of fighters left to evaluate
+    setLeft((prevLeft) => prevLeft - 1);
     setHighestScore((prevHighest) => Math.max(prevHighest, score)); // update the highest score
   }, [fighters]);
   const onFinished = React.useRef(onFinishedFun);
@@ -42,36 +46,54 @@ function FightManager({
   React.useEffect(() => {
     onFinished.current = onFinishedFun;
   }, [onFinishedFun]);
-    
+  
+  const onTrainedFun: TrainedEventCallback = React.useCallback((model, uuid, data=null) => {
+    console.log(`Fighter ${uuid} trained`);
+    if(!data) {
+      data = {score: null, prevScore: null};
+    }
+    const player: IFighter = { // create a new player
+      model, callback: onFinished, uuid, ...data
+    };
+    // add the player to the fighters    
+    fighters.current[uuid] = player;
+    // increase the number of fighters left to evaluate
+    // setLeft((prevLeft) => prevLeft + 1);
+    colosseum.addFighter(player, uuid); // add the fighter to the colosseum
+  }, [fighters, colosseum, onFinished]);
+
+  const onTrained = React.useRef(onTrainedFun);
   // when all fighters are evaluated
   React.useEffect(() => {
     if (left > 0) return;
     setEpoch(epoch => epoch + 1); // next epoch
+    trainer.nextEpoch(); // tell the trainer to start the next epoch
     setLastHighest(highestScore); // update the last highest score
     setHighestScore(-Number.MAX_VALUE); // reset the highest score
 
-    const fightersArray: IFighter[] = Object.values(fighters);
+    const fightersArray: IFighter[] = Object.values(fighters.current);
+    fighters.current = new Map(); // clear the fighters
+    setLeft(fightersPerEpoch); // set the number of fighters left to evaluate
     if (fightersArray.length === 0) { // we just started
       console.log('Creating fighters at the start');
       // create fighters
-      const fightersLocal: Map<string, IFighter> = new Map();
       for (let i = 0; i < fightersPerEpoch; i++) {
         const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);
-        const model = new Brain({ inputSize: 240, outputSize: RAGDOLL_PARTS.length * 3});
+        const model = new CActorNetwork({
+          stateSize: 240,
+          actionSize: RAGDOLL_PARTS.length * 3
+        });
         // apply huge mutation to the model
         model.mutate({ rate: 1.0, std: 10.0 });
-        const player: IFighter = { 
-          model, callback: onFinished, uuid, score: null, prevScore: null
-        };
-        fightersLocal[uuid] = player;
-        // add the fighter to the colosseum
-        addFighter(player, player.uuid);
-        setLeft(left => left + 1);
+        onTrained.current(model, uuid); // imitate the training process
       }
-      setFighters(fightersLocal);
       return;
     }
-    
+    // add the statistics only if we have scored fighters
+    addStatistic({
+      epoch,
+      scores: fightersArray.map(fighter => fighter.score),
+    });
     const N = seedsN; // number of seeds
     // sort the fighters by score, in ascending order, higher score is last
     function score(fighter: IFighter) {
@@ -103,45 +125,36 @@ function FightManager({
       return probabilities.length - 1;
     }
 
-    // create new fighters from the best ones
-    const newFighters: Map<string, IFighter> = new Map();
     // first, add the top fighters to the new fighters
     for (const fighter of topN) {
-      fighter.prevScore = score(fighter);
-      fighter.score = null;
-      newFighters[fighter.uuid] = fighter;
+      const { uuid, model } = fighter;
+      onTrained.current(model, uuid, {score: null, prevScore: score(fighter)});
     }
     // then, create new fighters by combining the top fighters with mutations
-    for (let i = 0; i < fightersPerEpoch; i++) {
+    for (let i = topN.length; i < fightersPerEpoch; i++) {
       const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);
       const parentA = topN[getFighterIndex()].model;
       const parentB = topN[getFighterIndex()].model;
-      const factor = 0.5; // average the weights
-      const model = parentA.combine(parentB, factor);
-      model.mutate({ rate: 0.5, std: 0.001 });
+      const factor = 0.5 + Math.random() * 10.0 - 5.0;
+      const model = parentA.combine({model: parentB, factor});
+      model.mutate({ rate: 1.0, std: 0.01 });
       
-      const player: IFighter = {
-        model, callback: onFinished, uuid, score: null, prevScore: null
-      };
-      newFighters[uuid] = player;
-      addFighter(player, player.uuid);
-      setLeft(left => left + 1);
+      trainer.train(model, onTrained, uuid);
     }
-    setFighters(newFighters);
   }, [
-    left, fighters, fightersPerEpoch, addFighter, onFinished, seedsN,
-    highestScore, lastHighest
+    left, fighters, fightersPerEpoch, onFinished, seedsN, colosseum, onTrained, trainer,
+    highestScore, lastHighest, addStatistic, epoch
   ]);
 
   React.useEffect(() => {
     return () => {
       // dispose the models when the component is unmounted
-      const all = Array.from(fighters.values());
+      const all = Array.from(fighters.current.values());
       for (const fighter of all) {
         fighter.model.dispose();
       }
     };
-  }, [fighters]);
+  }, []);
   return null;
 }
 

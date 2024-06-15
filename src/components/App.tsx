@@ -9,6 +9,9 @@ import Colosseum from './Colosseum';
 import { IScores } from './Arena';
 import FightManager from './FightManager';
 import FormRange from 'react-bootstrap/FormRange';
+import Trainer from './Trainer';
+import { Form } from 'react-bootstrap';
+import ConfidenceIntervalsGraph from './ConfidenceIntervalsGraph';
 
 const App: React.FC = () => {
   const [scores, setScores] = React.useState<IScores[]>([]);
@@ -16,6 +19,8 @@ const App: React.FC = () => {
   const [totalArenas, setTotalArenas] = React.useState<number>(10);
   const [fightersPerEpoch, setFightersPerEpoch] = React.useState<number>(100);
   const [seedsN, setSeedsN] = React.useState<number>(20);
+  const [inferSpeed, setInferSpeed] = React.useState<number>(0);
+  const [isTrainable, setIsTrainable] = React.useState<boolean>(false);
   const [isPaused, setIsPaused] = React.useState<boolean>(false);
   const togglePause = React.useCallback((e) => {
     setIsPaused((oldValue) => !oldValue);
@@ -46,6 +51,16 @@ const App: React.FC = () => {
     setRunId(Date.now().toString());
   }, []);
 
+  const statistics = React.useRef<number[][]>([]);
+  React.useEffect(() => {
+    statistics.current = [];
+  }, [runId]); // reset the statistics when a new run is started
+  const addStatistic = React.useCallback((newStatistics: { epoch: number, scores: number[] }) => {
+    const scoresNew = [...newStatistics.scores]; // copy the scores
+    scoresNew.sort((a, b) => a - b); // sort the scores
+    statistics.current.push(scoresNew); // add the scores to the statistics
+  }, []);
+
   return (
     <>
       <Canvas id='canvas' style={{ position: 'absolute' }}>
@@ -60,11 +75,14 @@ const App: React.FC = () => {
             totalArenas={totalArenas} updateScores={setScores} isPaused={isPaused}
             timeLimit={timeLimit * 1000}
           >
-            <FightManager 
-              updateStats={setFightStats} 
-              fightersPerEpoch={fightersPerEpoch} 
-              seedsN={seedsN} 
-            />
+            <Trainer trainable={isTrainable}>
+              <FightManager 
+                updateStats={setFightStats} 
+                addStatistic={addStatistic}
+                fightersPerEpoch={fightersPerEpoch} 
+                seedsN={seedsN} 
+              />
+            </Trainer>
           </Colosseum>
         </Physics>
         <OrbitControls />
@@ -76,9 +94,12 @@ const App: React.FC = () => {
             <div>Arena {i + 1} | Player A: {scores.playerA} | Player B: {scores.playerB}</div>
           </div>
         ))}
+        <div>
+          <label>Inference speed: {inferSpeed.toFixed(2)} per second</label>
+        </div>
         {fightStats}
       </div>
-      <InferenceWorker />
+      <InferenceWorker updateSpeed={setInferSpeed} />
       {/* right sidebar */}
       <div style={sidebarStyle}>
         <div>
@@ -109,6 +130,16 @@ const App: React.FC = () => {
             onChange={(e) => setTimeLimit(parseInt(e.target.value))}
           />
         </div>
+        {/* 
+        <div>
+          <Form.Check
+            type='checkbox'
+            label='Trainable'
+            checked={isTrainable}
+            onChange={(e) => setIsTrainable(e.target.checked)}
+          />
+        </div>
+         */}
         {/* button to start a new run */}
         <button style={{background: 'blue', color: 'white', padding: '10px', borderRadius: '5px', width: '100%', marginTop: '10px'}} onClick={newRun}>
           New run
@@ -118,6 +149,12 @@ const App: React.FC = () => {
           {isPaused ? 'Resume' : 'Pause'}
         </button>
       </div>
+      <ConfidenceIntervalsGraph 
+        data={statistics.current} 
+        height={400} width={600}
+        levels={[[1.0, 'black'], [0.9, 'red'], [0.75, 'green'], [0.5, 'blue']]}
+        style={{ position: 'absolute', bottom: 0, left: 0 }}
+      />
     </>
   );
 }
