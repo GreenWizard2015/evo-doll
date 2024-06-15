@@ -163,7 +163,7 @@ function Arena({
       });
       
       if(action) { // apply action if available
-        const maxForce = 1;
+        const maxForce = 0.5;
         for (let i = 0; i < RAGDOLL_PARTS.length; i++) {
           const { api } = playerData.ref.current[RAGDOLL_PARTS[i]];
           const vec = [
