@@ -1,41 +1,39 @@
 import React from 'react';
 
-type CongidenceLevel = [number, string];
+type ConfidenceLevel = [number, string];
 type ConfidenceIntervalsGraphProps = {
   data: number[][], // data in subarrays should be sorted
   height: number,
   width: number,
   style?: React.CSSProperties,
-  levels: CongidenceLevel[],
+  levels: ConfidenceLevel[],
 };
+
 const ConfidenceIntervalsGraph = ({ 
   data,
-  height, width,
-  style,
-  levels,
+  height, 
+  width, 
+  style, 
+  levels 
 }: ConfidenceIntervalsGraphProps) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
-  const colors = React.useMemo(() => {
-    return levels.map((level, index) => level[1]);
-  }, [levels]);
-  const levelsValues = React.useMemo(() => {
-    return levels.map((level) => level[0]);
-  }, [levels]);
+  const colors = React.useMemo(() => levels.map((level) => level[1]), [levels]);
+  const levelsValues = React.useMemo(() => levels.map((level) => level[0]), [levels]);
+
   const visibleData = React.useMemo(() => {
-    const res = data;
-    // only last 50 values
-    if (50 < res.length) {
-      return res.slice(-50);
-    }
-    return res;
-  }, [data]);
+    // Ensure only the last N entries are returned
+    const N = 50;
+    return N < data.length ? data.slice(-N) : data;
+  }, [data]);  
 
   const draw = React.useCallback(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // fill the background
     ctx.fillStyle = 'silver';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -43,12 +41,10 @@ const ConfidenceIntervalsGraph = ({
     const graphHeight = canvas.height;
     const xScale = graphWidth / (visibleData.length - 1);
 
-    // calculate levels
-    const perLevel = [];
-    levelsValues.forEach((level) => {      
-      perLevel.push(visibleData.map(values => values[Math.floor(values.length * level) - 1]));
+    // Calculate levels
+    const perLevel = levelsValues.map(level => {
+      return visibleData.map(values => values[Math.floor(values.length * level) - 1]);
     });
-    console.log(perLevel);
 
     const flat = perLevel.flat();
     const yMax = Math.max(...flat);
@@ -71,12 +67,11 @@ const ConfidenceIntervalsGraph = ({
       });
 
       ctx.stroke();
+      ctx.closePath();
     });
-    ctx.closePath();
-    ctx.restore();
   }, [levelsValues, colors, visibleData]);
 
-  // animate the graph by using requestAnimationFrame
+  // Animate the graph by using requestAnimationFrame
   React.useEffect(() => {
     let frameId = null;
     const render = () => {
@@ -86,7 +81,9 @@ const ConfidenceIntervalsGraph = ({
     render();
 
     return () => {
-      cancelAnimationFrame(frameId);
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
     };
   }, [draw]);
 
