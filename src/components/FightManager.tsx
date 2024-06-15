@@ -135,15 +135,15 @@ function FightManager({
       const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);
       const parentA = topN[getFighterIndex()].model;
       const parentB = topN[getFighterIndex()].model;
-      const factor = 0.5; // average the weights
+      const factor = 0.5 + Math.random() * 10.0 - 5.0;
       const model = parentA.combine({model: parentB, factor});
-      model.mutate({ rate: 0.5, std: 0.001 });
+      model.mutate({ rate: 1.0, std: 0.01 });
       
       trainer.train(model, onTrained, uuid);
     }
   }, [
     left, fighters, fightersPerEpoch, onFinished, seedsN, colosseum, onTrained, trainer,
-    highestScore, lastHighest, addStatistic
+    highestScore, lastHighest, addStatistic, epoch
   ]);
 
   React.useEffect(() => {

@@ -1,12 +1,34 @@
 import React from 'react';
 
+type CongidenceLevel = [number, string];
+type ConfidenceIntervalsGraphProps = {
+  data: number[][], // data in subarrays should be sorted
+  height: number,
+  width: number,
+  style?: React.CSSProperties,
+  levels: CongidenceLevel[],
+};
 const ConfidenceIntervalsGraph = ({ 
-  data, 
+  data,
   height, width,
   style,
-  levels = [0.9, 0.75, 0.5],
-}) => {
+  levels,
+}: ConfidenceIntervalsGraphProps) => {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const colors = React.useMemo(() => {
+    return levels.map((level, index) => level[1]);
+  }, [levels]);
+  const levelsValues = React.useMemo(() => {
+    return levels.map((level) => level[0]);
+  }, [levels]);
+  const visibleData = React.useMemo(() => {
+    const res = data;
+    // only last 50 values
+    if (50 < res.length) {
+      return res.slice(-50);
+    }
+    return res;
+  }, [data]);
 
   const draw = React.useCallback(() => {
     const canvas = canvasRef.current;
@@ -19,14 +41,14 @@ const ConfidenceIntervalsGraph = ({
 
     const graphWidth = canvas.width;
     const graphHeight = canvas.height;
-    const xScale = graphWidth / (data.length - 1);
+    const xScale = graphWidth / (visibleData.length - 1);
 
     // calculate levels
     const perLevel = [];
-    levels.forEach((level) => {      
-      perLevel.push(data.map(values => values[Math.floor(values.length * level)]));
+    levelsValues.forEach((level) => {      
+      perLevel.push(visibleData.map(values => values[Math.floor(values.length * level) - 1]));
     });
-    console.log(perLevel);    
+    console.log(perLevel);
 
     const flat = perLevel.flat();
     const yMax = Math.max(...flat);
@@ -35,7 +57,7 @@ const ConfidenceIntervalsGraph = ({
 
     perLevel.forEach((level, levelIndex) => {
       ctx.beginPath();
-      ctx.strokeStyle = `hsl(${(levelIndex / levels.length) * 360}, 100%, 50%)`;
+      ctx.strokeStyle = colors[levelIndex];
 
       level.forEach((y, index) => {
         const x = index * xScale;
@@ -52,7 +74,7 @@ const ConfidenceIntervalsGraph = ({
     });
     ctx.closePath();
     ctx.restore();
-  }, [data, levels, canvasRef, height, width]);
+  }, [levelsValues, colors, visibleData]);
 
   // animate the graph by using requestAnimationFrame
   React.useEffect(() => {

@@ -57,8 +57,8 @@ const App: React.FC = () => {
   }, [runId]); // reset the statistics when a new run is started
   const addStatistic = React.useCallback((newStatistics: { epoch: number, scores: number[] }) => {
     const scoresNew = [...newStatistics.scores]; // copy the scores
-    scoresNew.sort((a, b) => a - b); // sort the scores by ascending order
-    statistics.current.push(newStatistics.scores);
+    scoresNew.sort((a, b) => a - b); // sort the scores
+    statistics.current.push(scoresNew); // add the scores to the statistics
   }, []);
 
   return (
@@ -151,8 +151,8 @@ const App: React.FC = () => {
       </div>
       <ConfidenceIntervalsGraph 
         data={statistics.current} 
-        height={200} width={200}
-        levels={[0.9]}
+        height={400} width={600}
+        levels={[[1.0, 'black'], [0.9, 'red'], [0.75, 'green'], [0.5, 'blue']]}
         style={{ position: 'absolute', bottom: 0, left: 0 }}
       />
     </>
