@@ -13,11 +13,16 @@ import Trainer from './Trainer';
 import { Form } from 'react-bootstrap';
 import ConfidenceIntervalsGraph from './ConfidenceIntervalsGraph';
 
+function estimateAgentsToEvaluate(seedsN: number, withNoise: boolean, crossoversSplits: number) {
+  const pairs = seedsN * (seedsN + 1) / 2;
+  const bySplittings = pairs * crossoversSplits;
+  return seedsN + (withNoise ? seedsN : 0) + bySplittings;
+}
+
 const App: React.FC = () => {
   const [scores, setScores] = React.useState<IScores[]>([]);
   const [fightStats, setFightStats] = React.useState<Array<React.ReactNode>>([]);
   const [totalArenas, setTotalArenas] = React.useState<number>(10);
-  const [fightersPerEpoch, setFightersPerEpoch] = React.useState<number>(100);
   const [seedsN, setSeedsN] = React.useState<number>(20);
   const [inferSpeed, setInferSpeed] = React.useState<number>(0);
   const [isTrainable, setIsTrainable] = React.useState<boolean>(false);
@@ -61,6 +66,10 @@ const App: React.FC = () => {
     statistics.current.push(scoresNew); // add the scores to the statistics
   }, []);
 
+  const [withNoise, setWithNoise] = React.useState<boolean>(true);
+  const [noiseStd, setNoiseStd] = React.useState<number>(0.001);
+  const [crossoversSplits, setCrossoversSplits] = React.useState<number>(1);
+
   return (
     <>
       <Canvas id='canvas' style={{ position: 'absolute' }}>
@@ -79,8 +88,9 @@ const App: React.FC = () => {
               <FightManager 
                 updateStats={setFightStats} 
                 addStatistic={addStatistic}
-                fightersPerEpoch={fightersPerEpoch} 
-                seedsN={seedsN} 
+                additiveNoiseStd={withNoise ? noiseStd : 0}
+                seedsN={seedsN}
+                crossoversSplits={crossoversSplits}
               />
             </Trainer>
           </Colosseum>
@@ -110,13 +120,6 @@ const App: React.FC = () => {
           />
         </div>
         <div>
-          <label>Fighters per epoch ({fightersPerEpoch})</label>
-          <FormRange 
-            min={1} max={100} value={fightersPerEpoch} 
-            onChange={(e) => setFightersPerEpoch(parseInt(e.target.value))}
-          />
-        </div>
-        <div>
           <label>Seeds N ({seedsN})</label>
           <FormRange 
             min={1} max={100} value={seedsN} 
@@ -129,6 +132,31 @@ const App: React.FC = () => {
             min={1} max={100} value={timeLimit} 
             onChange={(e) => setTimeLimit(parseInt(e.target.value))}
           />
+        </div>
+        {/* panel for noise */}
+        <div style={{border: '1px solid white', padding: '10px', borderRadius: '5px' }}>
+          <Form.Check
+            type='checkbox'
+            label={'Additive noise (' + noiseStd.toFixed(3) + ')'}
+            checked={withNoise}
+            onChange={(e) => setWithNoise(e.target.checked)}
+          />
+          <FormRange 
+            min={0.001} max={1.0} step={0.001} value={noiseStd} 
+            onChange={(e) => setNoiseStd(parseFloat(e.target.value))}
+            disabled={!withNoise}
+          />
+        </div>
+        {/* panel for crossovers */}
+        <div style={{border: '1px solid white', padding: '10px', borderRadius: '5px' }}>
+          <label>Crossovers splits ({crossoversSplits})</label>
+          <FormRange 
+            min={0} max={5} value={crossoversSplits} 
+            onChange={(e) => setCrossoversSplits(parseInt(e.target.value))}
+          />
+        </div>
+        <div>
+          {'Estimated agents to evaluate: ' + estimateAgentsToEvaluate(seedsN, withNoise, crossoversSplits)}
         </div>
         {/* 
         <div>

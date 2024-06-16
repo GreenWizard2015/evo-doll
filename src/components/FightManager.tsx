@@ -11,11 +11,32 @@ interface IFighter extends IPlayerData {
   prevScore: number | null; // the previous score
 }
 
+// helper functions
+function generateUniquePairs(N) {
+  const newPairs = [];
+  for (let i = 0; i <= N; i++) {
+    for (let j = i + 1; j <= N; j++) {
+      newPairs.push([i, j]);
+    }
+  }
+  return newPairs;
+}
+
+function generateSplits(crossoversSplits) {
+  if (crossoversSplits < 1) return [];
+  const splits = [];
+  for (let i = 1; i <= crossoversSplits; i++) {
+    splits.push(i / (crossoversSplits + 1));
+  }
+  return splits;
+}
+
 function FightManager({
-  fightersPerEpoch = 10,
-  seedsN=3,
+  seedsN,
   updateStats,
   addStatistic,
+  additiveNoiseStd,
+  crossoversSplits,
 }) {
   const colosseum = useColosseum(); // get the addFighter function from the context
   const trainer = useTrainer(); // get the trainer context
@@ -73,11 +94,11 @@ function FightManager({
 
     const fightersArray: IFighter[] = Object.values(fighters.current);
     fighters.current = new Map(); // clear the fighters
-    setLeft(fightersPerEpoch); // set the number of fighters left to evaluate
     if (fightersArray.length === 0) { // we just started
       console.log('Creating fighters at the start');
       // create fighters
-      for (let i = 0; i < fightersPerEpoch; i++) {
+      setLeft(seedsN); // set the number of fighters left to evaluate
+      for (let i = 0; i < seedsN; i++) {
         const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);
         const model = new CActorNetwork({
           stateSize: 240,
@@ -102,48 +123,47 @@ function FightManager({
 
     fightersArray.sort((a, b) => score(a) - score(b));
     const topN = fightersArray.slice(-N); // get the top N fighters
-    const badFighters = fightersArray.slice(0, -N); // get the bad fighters
     // dispose the bad fighters models
-    for (const fighter of badFighters) {
+    for (const fighter of fightersArray.slice(0, -N)) {
       fighter.model.dispose();
     }
 
-    const scores = topN.map(fighter => score(fighter));
-    // normalize the scores to sum to 1
-    const sum = scores.reduce((a, b) => a + b, 0);
-    const probabilities = scores.map(score => score / sum);
-
-    function getFighterIndex() {
-      const r = Math.random();
-      let cumulative = 0;
-      for (let i = 0; i < probabilities.length; i++) {
-        cumulative += probabilities[i];
-        if (r <= cumulative) {
-          return i;
-        }
-      }
-      return probabilities.length - 1;
-    }
-
+    setLeft(topN.length); // set the number of fighters left to evaluate
     // first, add the top fighters to the new fighters
     for (const fighter of topN) {
       const { uuid, model } = fighter;
       onTrained.current(model, uuid, {score: null, prevScore: score(fighter)});
     }
-    // then, create new fighters by combining the top fighters with mutations
-    for (let i = topN.length; i < fightersPerEpoch; i++) {
+    const newFighters = [];
+    // add each fighter to the new fighters with noise
+    if (0 < additiveNoiseStd) {
+      for (const fighter of topN) {
+        const { model } = fighter;
+        const newModel = model.copy();
+        newModel.mutate({ rate: 1.0, std: additiveNoiseStd });
+        newFighters.push(newModel);
+      }
+    }
+    // create unique pairs and combine them
+    const pairs = generateUniquePairs(topN.length - 1);
+    for (const [indxA, indxB] of pairs) {
+      const parentA = topN[indxA].model;
+      const parentB = topN[indxB].model;
+      const splits = generateSplits(crossoversSplits);
+      for (const split of splits) {
+        const model = parentA.combine({model: parentB, factor: split});
+        model.mutate({ rate: 1.0, std: additiveNoiseStd });
+        newFighters.push(model);
+      }
+    }
+    setLeft(oldValue => oldValue + newFighters.length); // add the number of new fighters
+    for (const model of newFighters) {      
       const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);
-      const parentA = topN[getFighterIndex()].model;
-      const parentB = topN[getFighterIndex()].model;
-      const factor = 0.5 + Math.random() * 10.0 - 5.0;
-      const model = parentA.combine({model: parentB, factor});
-      model.mutate({ rate: 1.0, std: 0.01 });
-      
       trainer.train(model, onTrained, uuid);
     }
   }, [
-    left, fighters, fightersPerEpoch, onFinished, seedsN, colosseum, onTrained, trainer,
-    highestScore, lastHighest, addStatistic, epoch
+    left, fighters, onFinished, seedsN, colosseum, onTrained, trainer,
+    highestScore, lastHighest, addStatistic, epoch, additiveNoiseStd, crossoversSplits
   ]);
 
   React.useEffect(() => {
