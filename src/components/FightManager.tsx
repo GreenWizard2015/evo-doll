@@ -156,6 +156,11 @@ function FightManager({
         newFighters.push(model);
       }
     }
+    // make sure the number of new fighters is even always
+    // so we can create pairs for the fights
+    if ((topN.length + newFighters.length) % 2 === 1) {
+      newFighters.push(topN[topN.length - 1].model.copy());
+    }
     setLeft(oldValue => oldValue + newFighters.length); // add the number of new fighters
     for (const model of newFighters) {      
       const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);

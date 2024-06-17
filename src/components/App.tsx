@@ -16,7 +16,8 @@ import ConfidenceIntervalsGraph from './ConfidenceIntervalsGraph';
 function estimateAgentsToEvaluate(seedsN: number, withNoise: boolean, crossoversSplits: number) {
   const pairs = seedsN * (seedsN + 1) / 2;
   const bySplittings = pairs * crossoversSplits;
-  return seedsN + (withNoise ? seedsN : 0) + bySplittings;
+  const res = seedsN + (withNoise ? seedsN : 0) + bySplittings;
+  return (res % 2 === 0) ? res : res + 1;
 }
 
 const App: React.FC = () => {
