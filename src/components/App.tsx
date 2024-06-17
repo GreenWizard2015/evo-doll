@@ -20,13 +20,16 @@ function estimateAgentsToEvaluate(seedsN: number, withNoise: boolean, crossovers
   return (res % 2 === 0) ? res : res + 1;
 }
 
+type Algorithms = 'pseudo-gradient-descent' | 'genetic-algorithm';
+
 const App: React.FC = () => {
   const [scores, setScores] = React.useState<IScores[]>([]);
   const [fightStats, setFightStats] = React.useState<Array<React.ReactNode>>([]);
   const [totalArenas, setTotalArenas] = React.useState<number>(10);
-  const [seedsN, setSeedsN] = React.useState<number>(20);
+  const [seedsN, setSeedsN] = React.useState<number>(5);
   const [inferSpeed, setInferSpeed] = React.useState<number>(0);
   const [isTrainable, setIsTrainable] = React.useState<boolean>(false);
+  const [alghorithm, setAlghorithm] = React.useState<Algorithms>('pseudo-gradient-descent');
   const [isPaused, setIsPaused] = React.useState<boolean>(false);
   const togglePause = React.useCallback((e) => {
     setIsPaused((oldValue) => !oldValue);
@@ -71,6 +74,13 @@ const App: React.FC = () => {
   const [noiseStd, setNoiseStd] = React.useState<number>(0.001);
   const [crossoversSplits, setCrossoversSplits] = React.useState<number>(1);
 
+  const [learningRate, setLearningRate] = React.useState<number>(0.01);
+  const [trials, setTrials] = React.useState<number>(10);
+  const pseudoGradientDescent = React.useMemo(() => {
+    if ('pseudo-gradient-descent' !== alghorithm) return null;
+    return { learningRate, trials };
+  }, [learningRate, trials, alghorithm]);
+
   return (
     <>
       <Canvas id='canvas' style={{ position: 'absolute' }}>
@@ -92,6 +102,7 @@ const App: React.FC = () => {
                 additiveNoiseStd={withNoise ? noiseStd : 0}
                 seedsN={seedsN}
                 crossoversSplits={crossoversSplits}
+                pseudoGradientDescent={pseudoGradientDescent}
               />
             </Trainer>
           </Colosseum>
@@ -148,17 +159,45 @@ const App: React.FC = () => {
             disabled={!withNoise}
           />
         </div>
-        {/* panel for crossovers */}
-        <div style={{border: '1px solid white', padding: '10px', borderRadius: '5px' }}>
-          <label>Crossovers splits ({crossoversSplits})</label>
-          <FormRange 
-            min={0} max={5} value={crossoversSplits} 
-            onChange={(e) => setCrossoversSplits(parseInt(e.target.value))}
-          />
+        <div className='my-2'>
+          <label>Algorithm ({alghorithm})</label>
+          <Form.Control as='select' value={alghorithm} onChange={(e) => setAlghorithm(e.target.value as Algorithms)}>
+            <option value='pseudo-gradient-descent'>Pseudo gradient descent</option>
+            <option value='genetic-algorithm'>Genetic algorithm</option>
+          </Form.Control>
         </div>
-        <div>
-          {'Estimated agents to evaluate: ' + estimateAgentsToEvaluate(seedsN, withNoise, crossoversSplits)}
-        </div>
+        {('genetic-algorithm' === alghorithm) ? (
+          <div>
+            {/* panel for crossovers */}
+            <div style={{border: '1px solid white', padding: '10px', borderRadius: '5px' }}>
+              <label>Crossovers splits ({crossoversSplits})</label>
+              <FormRange 
+                min={0} max={5} value={crossoversSplits} 
+                onChange={(e) => setCrossoversSplits(parseInt(e.target.value))}
+              />
+            </div>
+            <div>
+              {'Estimated agents to evaluate: ' + estimateAgentsToEvaluate(seedsN, withNoise, crossoversSplits)}
+            </div>
+          </div>
+        ) : null}
+        {('pseudo-gradient-descent' === alghorithm) ? (
+          <div>
+            <div>
+              <label>Learning rate</label>
+              <Form.Control type='number' min={0.001} max={1.0} step={0.001}
+                value={learningRate}
+                onChange={(e) => setLearningRate(parseFloat(e.target.value))}
+              />
+            </div>
+            <div>
+              <label>Trials</label>
+              <Form.Control type='number'
+                value={trials}
+                onChange={(e) => setTrials(parseInt(e.target.value))}
+              />
+            </div>
+          </div>) : null}
         {/* 
         <div>
           <Form.Check
