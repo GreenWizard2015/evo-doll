@@ -201,7 +201,8 @@ function FightManager({
         // create `trials` fighters for each seed
         const fighters = [];
         const N = (seeds.length + 1) * pseudoGradientDescent.trials;
-        const trials = pseudoGradientDescent.trials + 1;
+        // adjust the number of fighters to be even
+        const trials = pseudoGradientDescent.trials + ((N % 2 !== 1) ? 1 : 0);
         for (let seedId = 0; seedId < seeds.length; seedId++) {
           const seed = seeds[seedId];
           fighters.push([seed, { seedId, seed: true }]);
