@@ -235,8 +235,21 @@ function Arena({
     const targetSpeed = targetVelocity.length();
     if (bodySpeed > targetSpeed) return; // only count if the body is faster
 
+    let distance_between_players = 0;
+    if(bodyData?.player !== undefined) {
+      const oponent = (bodyData.player === 'playerA') ? fighterA : fighterB;
+      const oponentHead = new THREE.Vector3();
+      oponent.current.ref.current['head'].ref.current.getWorldPosition(oponentHead);
+
+      const self = (targetData.player === 'playerA') ? fighterA : fighterB;
+      const head = new THREE.Vector3();
+      self.current.ref.current['head'].ref.current.getWorldPosition(head);
+      distance_between_players = head.distanceTo(oponentHead);
+    }
+    // penalize the player that is hit
+
     const tmp = bodyVelocity.clone().sub(targetVelocity);
-    const score = tmp.length();
+    const score = tmp.length() - distance_between_players;
     setScores((prevScores) => {
       const scoresNew = { ...prevScores };
       // penalize the player that is hit
@@ -246,7 +259,6 @@ function Arena({
         const globalHead = new THREE.Vector3();
         head.getWorldPosition(globalHead);
         scoresNew[targetData.player] += Math.max(0, globalHead.y);
-        scoresNew[targetData.player] -= Math.pow(globalHead.x, 2);
         scoresNew[targetData.player] -= score;
       }
       // reward the player that hits
@@ -255,10 +267,9 @@ function Arena({
         const globalHead = new THREE.Vector3();
         head.getWorldPosition(globalHead);
         scoresNew[bodyData.player] += Math.max(0, globalHead.y);
-        scoresNew[bodyData.player] -= Math.pow(globalHead.x, 2);
         
         // penalize the player that if the player hits anything that is not the other player
-        scoresNew[bodyData.player] += targetData ? score : -1000;
+        scoresNew[bodyData.player] += targetData ? score : -100;
       }
       return scoresNew;
     });
