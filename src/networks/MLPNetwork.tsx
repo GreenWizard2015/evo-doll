@@ -6,17 +6,17 @@ tf.env().set("WEBGL_DELETE_TEXTURE_THRESHOLD", 256000000);
 // Define the model creation function
 const createModel = ({
   inputSize, outputSize,
-  hiddenLayers = 4, hiddenUnits = 64,
+  hiddenLayers = 4, hiddenUnits = 256*4, hiddenActivation = 'gelu',
   finalActivation = 'tanh'
 }) => {
   const model = tf.sequential();
   
   // Input layer
-  model.add(tf.layers.dense({ inputShape: [inputSize], units: hiddenUnits, activation: 'relu' }));
+  model.add(tf.layers.dense({ inputShape: [inputSize], units: hiddenUnits, activation: hiddenActivation as any }));
   
   // Hidden layers
   for (let i = 0; i < hiddenLayers; i++) {
-    model.add(tf.layers.dense({ units: hiddenUnits, activation: 'relu' }));
+    model.add(tf.layers.dense({ units: hiddenUnits, activation: hiddenActivation as any }));
   }
   
   // Output layer

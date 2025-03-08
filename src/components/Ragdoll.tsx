@@ -64,6 +64,8 @@ export function Ragdoll({ onState, props }: { onState: (state: any) => void, pro
     };
   }, [props, group]);
 
+  const startLook90 = new THREE.Vector3(Math.cos(Math.PI / 2), Math.sin(Math.PI / 2), 0);
+
   return (
     <group ref={g => setGroup(g ? g.id : null)}>
       <BodyPart name="upperBody" setApi={bind} {...props}>
@@ -108,7 +110,6 @@ function encodeObservation({raycaster, player, scene, N=15}) {
     raycaster.set(headPosition, direction);
 
     const intersects = raycaster.intersectObjects(scene.children, true);
-    let intersection = new Array(validNames.length).fill(-1);
     // Filter out own parts
     const filteredIntersects = intersects.filter(
       intersect => (
@@ -117,11 +118,13 @@ function encodeObservation({raycaster, player, scene, N=15}) {
       )
     );
     // Store distances to objects
+    let distance = null;
     for (const intersect of filteredIntersects) {
-      const idx = validNames.indexOf(intersect.object.name);
-      intersection[idx] = intersect.distance;
+      if ((distance === null) || (intersect.distance < distance)) {
+        distance = intersect.distance / 100.0; // normalize
+      }
     }
-    res.push(...intersection);
+    res.push(distance || -1);
   }
   // add own parts positions relative to head
   const names = [...RAGDOLL_PARTS];
@@ -130,11 +133,12 @@ function encodeObservation({raycaster, player, scene, N=15}) {
     const partPosition = new THREE.Vector3();
     player[part].ref.current.getWorldPosition(partPosition);
     partPosition.sub(headPosition);
+    partPosition.divideScalar(100.0); // normalize
     res.push(partPosition.x, partPosition.y, partPosition.z);
   }
 
-  if(res.length !== 240) {
-    throw new Error(`Observation encoding failed: ${res.length}, but expected 240`);
+  if(res.length !== 60) {
+    throw new Error(`Observation encoding failed: ${res.length}, but expected 60`);
   }
   return res;
 }

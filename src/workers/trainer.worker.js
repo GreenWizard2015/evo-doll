@@ -4,7 +4,7 @@ const { CActorNetwork } = require("../networks/ActorNetwork.tsx");
 
 let dataset = null;
 let critic = new CriticNetwork({
-  stateSize: 240,
+  stateSize: 60,
   actionSize: 11 * 3,
 });
 let running = false;

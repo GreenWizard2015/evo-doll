@@ -1,6 +1,6 @@
 const { CActorNetwork } = require("../networks/ActorNetwork.tsx");
 
-const INFERENCE_INTERVAL = 1000 / 10; // Interval between inferences
+const INFERENCE_INTERVAL = 1000 / 5; // Interval between inferences
 const models = {}; // modelId -> { network, time when last used }
 let queue = {}; // uuid -> { model, state }
 let to_be_processed = []; // list of uuids to be processed

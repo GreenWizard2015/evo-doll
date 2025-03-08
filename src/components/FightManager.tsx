@@ -121,7 +121,7 @@ function FightManager({
       for (let i = 0; i < seedsN; i++) {
         const uuid = generateUUID(Date.now().toString(), generateUUID.DNS);
         const model = new CActorNetwork({
-          stateSize: 240,
+          stateSize: 60,
           actionSize: RAGDOLL_PARTS.length * 3
         });
         // apply huge mutation to the model
@@ -237,7 +237,7 @@ function FightManager({
         const seeds = [];
         for (let i = 0; i < seedsN; i++) {
           const model = new CActorNetwork({
-            stateSize: 240,
+            stateSize: 60,
             actionSize: RAGDOLL_PARTS.length * 3
           });
           // apply huge mutation to the model
