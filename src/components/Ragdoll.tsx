@@ -100,7 +100,6 @@ function encodeObservation({raycaster, player, scene, N=15}) {
   const res = [];
   // add raycast results
   const step = 360 / N;
-  const OHEBase = new Array(validNames.length).fill(0);
   for (let i = 0; i < 360; i += step) {
     const angle = THREE.MathUtils.degToRad(i);
     // in XY plane
@@ -108,25 +107,18 @@ function encodeObservation({raycaster, player, scene, N=15}) {
     raycaster.set(headPosition, direction);
 
     const intersects = raycaster.intersectObjects(scene.children, true);
-    let intersection = [-1, ...OHEBase];
-    if (intersects.length > 0) {
-      // Filter out own parts
-      const filteredIntersects = intersects.filter(
-        intersect => (
-          validNames.includes(intersect.object.name) &&
-          !ownParts.includes(intersect.object.uuid)
-        )
-      );
-      if (filteredIntersects.length > 0) {
-        const idx = validNames.indexOf(filteredIntersects[0].object.name);
-        // convert to OHE
-        const OHE = [...OHEBase];
-        OHE[idx] = 1;
-        intersection = [
-          filteredIntersects[0].distance,
-          ...OHE
-        ];
-      }
+    let intersection = new Array(validNames.length).fill(-1);
+    // Filter out own parts
+    const filteredIntersects = intersects.filter(
+      intersect => (
+        validNames.includes(intersect.object.name) &&
+        !ownParts.includes(intersect.object.uuid)
+      )
+    );
+    // Store distances to objects
+    for (const intersect of filteredIntersects) {
+      const idx = validNames.indexOf(intersect.object.name);
+      intersection[idx] = intersect.distance;
     }
     res.push(...intersection);
   }
