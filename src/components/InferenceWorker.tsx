@@ -71,6 +71,10 @@ function InferenceWorker({ updateSpeed }) {
         worker.terminate();
         return;
       }
+      if ('error' === status) {
+        console.error('Worker error', e.data);
+        return;
+      }
     };
 
     return () => {

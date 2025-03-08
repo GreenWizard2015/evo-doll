@@ -27,14 +27,16 @@ function disposeOldModels(period) {
   }
 }
 
-function nextTask() {
+function bestMatchTaskId() {
   const now = Date.now();
   let bestTime = Number.MAX_VALUE;
   let bestMatch = null;
-  for (const taskId in to_be_processed) {
+  for (const taskId of to_be_processed) {
     const model = models[taskId];
-    // if model is not used, set time to INFERENCE_INTERVAL
-    const time = model.time ? now - model.time : INFERENCE_INTERVAL;
+    if (!model) continue; // Skip this model because it is not found
+    if (!model.time) return taskId; // if model is not used, return this model
+
+    const time = now - model.time;
     if (time < INFERENCE_INTERVAL) continue; // Skip this model
 
     if (time < bestTime) {
@@ -42,14 +44,19 @@ function nextTask() {
       bestMatch = taskId;
     }
   }
-  if (bestMatch) {
-    const { state, extras } = queue[bestMatch];
-    delete queue[bestMatch];
-    delete to_be_processed[to_be_processed.indexOf(bestMatch)];
+  return bestMatch;
+}
+
+function nextTask() {
+  const id = bestMatchTaskId();
+  if (id) {
+    const { state, extras } = queue[id];
+    delete queue[id];
+    delete to_be_processed[to_be_processed.indexOf(id)];
     return {
       state, extras,
-      model: models[bestMatch],
-      taskId: bestMatch
+      model: models[id],
+      taskId: id
     };
   }
   return null;
@@ -91,7 +98,7 @@ self.onmessage = async function ({ data }) {
   if (data.type === "model") { // store the model "locally"
     const { model, uuid } = data;
     const network = CActorNetwork.fromTransferable(model);
-    models[uuid] = { network, time: Date.now() };
+    models[uuid] = { network, time: null };
     return;
   }
   if (data.type === "runInference") { // run inference for the given state and model
