@@ -61,20 +61,21 @@ async function processQueue() {
 
   // Get next task
   const taskData = nextTask();
-  if (!taskData) return; // No tasks to process
-  const { state, extras, model, taskId } = taskData;
-  if (!model) {
-    console.error("Model not found", taskId);
-  } else {
-    const results = model.network.predict([state]);
-    model.time = Date.now(); // Update last used time
-    self.postMessage({
-      status: "done",
-      data: results,
-      uuid: taskId,
-      state,
-      extras
-    });
+  if (taskData) {
+    const { state, extras, model, taskId } = taskData;
+    if (!model) {
+      console.error("Model not found", taskId);
+    } else {
+      const results = model.network.predict([state]);
+      model.time = Date.now(); // Update last used time
+      self.postMessage({
+        status: "done",
+        data: results,
+        uuid: taskId,
+        state,
+        extras
+      });
+    }
   }
 
   disposeOldModels(1000 * 25); // Dispose models older than 25 seconds
