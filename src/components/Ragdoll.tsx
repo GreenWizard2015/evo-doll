@@ -102,6 +102,7 @@ function encodeObservation({raycaster, player, scene, N=15}) {
   const step = 360 / N;
   for (let i = 0; i < 360; i += step) {
     const angle = THREE.MathUtils.degToRad(i);
+    res.push(angle); // store angle as well
     // in XY plane
     const direction = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
     raycaster.set(headPosition, direction);
